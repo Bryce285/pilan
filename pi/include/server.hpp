@@ -21,7 +21,7 @@
 
 #pragma once
 
-class ClientHandling 
+class Server 
 {
 	public:
 		void handle_client(int clientfd);
@@ -44,7 +44,7 @@ class ClientHandling
 			Command command = DEFAULT;
 
 			std::string ifilename;
-			size_t in_bytes,remaining = 0;
+			size_t in_bytes_remaining = 0;
 
 			std::string ofilename;
 			size_t out_bytes_remaining = 0;
@@ -52,6 +52,7 @@ class ClientHandling
 			std::string file_to_delete;
 
 			bool connected = true;
+			std::string rx_buffer;
 			int file_fd = -1;
 		};
 
@@ -59,12 +60,12 @@ class ClientHandling
 		std::string load_auth_key();
 		bool authenticate(int clientfd);
 
-		bool upload_file(ClientState state);
-		bool download_file(ClientState state, int clientfd);
-		void list_files(ClientState state, int clientfd);
-		void delete_file(ClientState state);
+		bool upload_file(ClientState& state);
+		bool download_file(ClientState& state, int clientfd);
+		void list_files(ClientState& state, int clientfd);
+		void delete_file(ClientState& state);
 		
-		std::string parse_msg(ClientState state, size_t pos);
+		std::string parse_msg(ClientState& state, size_t pos);
 
 		void client_loop(int clientfd);
 };

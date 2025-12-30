@@ -1,6 +1,6 @@
-#include "client_handling.hpp"
+#include "server.hpp"
 
-void ClientHandling::set_timeout(int clientfd)
+void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
 	tv.tv_sec = 30;
@@ -9,7 +9,7 @@ void ClientHandling::set_timeout(int clientfd)
 	setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 }
 
-std::string ClientHandling::load_auth_key()
+std::string Server::load_auth_key()
 {
 	// TODO - real implementation of this function
 
@@ -18,7 +18,7 @@ std::string ClientHandling::load_auth_key()
 	return key;
 }
 
-bool ClientHandling::authenticate(int clientfd)
+bool Server::authenticate(int clientfd)
 {
 	std::string rx_buffer;
 	bool recieving = true;
@@ -100,7 +100,7 @@ bool ClientHandling::authenticate(int clientfd)
 	return true;
 }
 
-bool ClientHandling::upload_file(ClientState state)
+bool Server::upload_file(ClientState& state)
 {
 	bool done = false;
 
@@ -131,12 +131,13 @@ bool ClientHandling::upload_file(ClientState state)
 	std::filesystem::rename(ifilepath, permPath);
 	//TODO - handle rename error
 
+	state.command = DEFAULT;
 	state.connected = false;
 	done = true;
 	return done;
 }
 
-bool ClientHandling::download_file(ClientState state, int clientfd)
+bool Server::download_file(ClientState& state, int clientfd)
 {
 	bool done = false;
 
@@ -172,15 +173,19 @@ bool ClientHandling::download_file(ClientState state, int clientfd)
 	// send binary data
 	char buf[4096];
 	while (inFile.read(buf, sizeof(buf)) || inFile.gcount() > 0) {
-		send(clientfd, buf, inFile.gcount(), 0);
+		ssize_t sent = send(clientfd, buf, inFile.gcount(), 0);
+		if (sent <= 0) {
+			std::cerr << "Binary data failed to send" << std::endl;	
+		}
 	}
 				
+	state.command = DEFAULT;
 	state.connected = false;
 	done = true;
 	return done;
 }
 
-void ClientHanlding::list_files(ClientState state, int clientfd)
+void Server::list_files(ClientState& state, int clientfd)
 {
 	std::string path = ""; // TODO - may need to put a full path here
 	std::vector<std::string> filepaths;
@@ -214,11 +219,11 @@ void ClientHanlding::list_files(ClientState state, int clientfd)
 		total += sent;
 	}
 
+	state.command = DEFAULT;
 	state.connected = false;	
 }
 
-// TODO - implement this method
-void ClientHandling::delete_file(ClientState state)
+void Server::delete_file(ClientState& state)
 {
 	std::string file = state.file_to_delete;
 	std::string message;
@@ -247,11 +252,12 @@ void ClientHandling::delete_file(ClientState state)
 
 		total += sent;
 	}
-
+	
+	state.command = DEFAULT;
 	state.connected = false;
 }
 
-std::string ClientHandling::parse_msg(ClientState state, size_t pos)
+std::string Server::parse_msg(ClientState& state, size_t pos)
 {
 	std::string line = state.rx_buffer.substr(0, pos);
 	state.rx_buffer.erase(0, pos + 1);
@@ -331,7 +337,7 @@ std::string ClientHandling::parse_msg(ClientState state, size_t pos)
 	return response;	
 }
 
-void ClientHandling::client_loop(int clientfd)
+void Server::client_loop(int clientfd)
 {
 	std::cout << "entered client loop" << std::endl;
 
@@ -354,7 +360,7 @@ void ClientHandling::client_loop(int clientfd)
 				break;
 			}
 
-			perror("recv failed");
+			std::cerr << "recv failed" << std::endl;
 			state.connected = false;
 			break;
 		}
@@ -420,7 +426,7 @@ void ClientHandling::client_loop(int clientfd)
 		close(state.file_fd);
 }
 
-void ClientHandling::handle_client(int clientfd)
+void Server::handle_client(int clientfd)
 {
 	set_timeout(clientfd);
 	
