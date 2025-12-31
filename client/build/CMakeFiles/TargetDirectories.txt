@@ -1,0 +1,3 @@
+/home/bryce/projects/offlinePiFS/client/build/CMakeFiles/client.dir
+/home/bryce/projects/offlinePiFS/client/build/CMakeFiles/edit_cache.dir
+/home/bryce/projects/offlinePiFS/client/build/CMakeFiles/rebuild_cache.dir

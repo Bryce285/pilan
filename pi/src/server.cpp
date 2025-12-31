@@ -100,43 +100,6 @@ bool Server::authenticate(int clientfd)
 	return true;
 }
 
-bool Server::upload_file(ClientState& state)
-{
-	bool done = false;
-
-	std::string ifilename = state.ifilename + ".tmp";
-	std::filesystem::path ifilepath = ifilename;
-
-	// check if temp file for ofilename exists, create it if not
-	if (!std::filesystem::exists(ifilepath)) {
-		std::ofstream tmp(ifilename);
-	}
-				
-	std::ofstream outFile(ifilename, std::ios::binary | std::ios::app);
-	if (!outFile.is_open()) {
-		std::cerr << "Failed to open " << ifilename << " for upload." << std::endl;
-	}
-
-	// if bytes_remaining > 0 write binary data from recv to file
-	if (state.in_bytes_remaining > 0) {
-		const char* constPtr = buf;
-		outFile.write(constPtr, n);
-		state.in_bytes_remaining -= n;
-		outFile.close();
-		return done;
-	}
-
-	// if there are no bytes left to write, make temp file permanent
-	std::filesystem::path permPath = state.ifilename;
-	std::filesystem::rename(ifilepath, permPath);
-	//TODO - handle rename error
-
-	state.command = DEFAULT;
-	state.connected = false;
-	done = true;
-	return done;
-}
-
 bool Server::download_file(ClientState& state, int clientfd)
 {
 	bool done = false;
@@ -187,7 +150,9 @@ bool Server::download_file(ClientState& state, int clientfd)
 
 void Server::list_files(ClientState& state, int clientfd)
 {
-	std::string path = ""; // TODO - may need to put a full path here
+	std::cout << "Entered list function" << std::endl;
+
+	std::filesystem::path path = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test"; // TODO - need to change this for deployment on the pi
 	std::vector<std::string> filepaths;
 
 	try {
@@ -205,6 +170,8 @@ void Server::list_files(ClientState& state, int clientfd)
 	for (int i = 0; i < filepaths.size(); i++) {
 		message.append(filepaths[i] + "\n");
 	}
+	
+	std::cout << "Attempting to send files list" << std::endl;
 
 	const char* data_ptr = message.c_str();
 	size_t total = 0;
@@ -219,21 +186,36 @@ void Server::list_files(ClientState& state, int clientfd)
 		total += sent;
 	}
 
+	std::cout << "Files list sent" << std::endl;
+	std::cout << message << std::endl;
+
 	state.command = DEFAULT;
 	state.connected = false;	
 }
 
-void Server::delete_file(ClientState& state)
+void Server::delete_file(ClientState& state, int clientfd)
 {
-	std::string file = state.file_to_delete;
+	// TODO - prevent directory traversal attacks
+	std::filesystem::path file = std::filesystem::path("/home/bryce/projects/offlinePiFS/pi/pi_storage_test/") / state.file_to_delete;
 	std::string message;
+	
+	std::cout << "Attempting to delete: " << file << std::endl;
+	
+	std::cout << "Raw filename: [" << state.file_to_delete << "]\n";
+
+	if (std::filesystem::is_directory(file)) {
+    	std::cout << "ERROR: This is a directory, not a file" << std::endl;
+	}
+	if (!std::filesystem::exists(file)) {
+    	std::cout << "ERROR: File does not exist" << std::endl;
+	}
 
 	try {
 		if (std::filesystem::remove(file)) {
-			message = "File deleted: " + file;
+			message = "File deleted: " + file.string();
 		}
 		else {
-			message = "File could not be deleted" + file;
+			message = "File could not be deleted" + file.string();
 		}
 	}
 	catch (const std::filesystem::filesystem_error& e) {
@@ -257,7 +239,7 @@ void Server::delete_file(ClientState& state)
 	state.connected = false;
 }
 
-std::string Server::parse_msg(ClientState& state, size_t pos)
+std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 {
 	std::string line = state.rx_buffer.substr(0, pos);
 	state.rx_buffer.erase(0, pos + 1);
@@ -276,6 +258,8 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 	 	* lists all files that are stored on the Pi
  		*/
 		std::cout << "[INFO] Command recieved: LIST" << std::endl;
+		
+		//list_files(state, clientfd);
 
 		state.command = LIST;
 		response = "LISTING\n";
@@ -318,7 +302,11 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		* DELETE <filename>
 		* delete a file from the Pi
 		*/
-		std::cout << "[INFO] Command recieved: DOWNLOAD" << std::endl;
+		std::cout << "[INFO] Command recieved: DELETE" << std::endl;
+		
+		std::istringstream iss(line);
+		std::string cmd;
+		iss >> cmd >> state.file_to_delete;
 
 		state.command = DELETE;
 		response = "DELETING\n";
@@ -339,46 +327,27 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 
 void Server::client_loop(int clientfd)
 {
-	std::cout << "entered client loop" << std::endl;
-
 	ClientState state;
 	char buf[4096];
+	
+	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
 
 	while (state.connected) {
-		// read bytes from socket
-		ssize_t n = recv(clientfd, buf, sizeof(buf), 0);
-
-		if (n == 0) {
-			state.connected = false;
-			break;
-		}
 		
-		// treat timeouts as disconnections		
-		if (n < 0) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN) {
-				state.connected = false;
-				break;
-			}
+		ssize_t n = 0;
 
-			std::cerr << "recv failed" << std::endl;
-			state.connected = false;
-			break;
-		}
-
-		state.rx_buffer.append(buf, n);
-		
-		std::cout << "reached switch" << std::endl;
+		//std::cout << "reached switch" << std::endl;
 
 		switch (state.command) {
 			case LIST: {
 				
-				list_files(state);	
+				list_files(state, clientfd);	
 				break;
 			}
 
 			case UPLOAD: {
 				
-				if (!upload_file(state)) continue;
+				if (!upload_file(state, buf, n)) continue;
 				break;
 			}
 
@@ -390,7 +359,7 @@ void Server::client_loop(int clientfd)
 
 			case DELETE: {
 				
-				delete_file(state);
+				delete_file(state, clientfd);
 				break;
 			}
 
@@ -399,13 +368,71 @@ void Server::client_loop(int clientfd)
 			}
 		}
 
+		//std::cout << "reading bytes" << std::endl;
+		
+		// recieve data from the client
+		n = recv(clientfd, buf, sizeof(buf), 0);
+		
+		//std::cout << "stopped reading bytes" << std::endl;
+
+		if (n == 0) {
+			state.connected = false;
+			break;
+		}
+		
+		if (n < 0) {
+			if (errno != EWOULDBLOCK && errno != EAGAIN) {
+				std::cerr << "recv failed" << std::endl;
+				state.connected = false;
+				break;
+			}
+
+			continue;
+		}
+
+		if (n > 0) state.rx_buffer.append(buf, n);
+	
+		/*	
+		std::cout << "reached switch" << std::endl;
+		
+		switch (state.command) {
+			case LIST: {
+				
+				list_files(state, clientfd);	
+				break;
+			}
+
+			case UPLOAD: {
+				
+				if (!upload_file(state, buf, n)) continue;
+				break;
+			}
+
+			case DOWNLOAD: {
+				
+				if (!download_file(state, clientfd)) continue;
+				break;
+			}
+
+			case DELETE: {
+				
+				delete_file(state, clientfd);
+				break;
+			}
+
+			default: {
+				break;
+			}
+		}
+		*/
+
 		std::cout << "assembling protocol message" << std::endl;
 		
 		// assemble protocol messages
 		size_t pos;
 		while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
 
-			std::string response = parse_msg(state, pos);
+			std::string response = parse_msg(state, pos, clientfd);
 
 			// send response
 			ssize_t sent = send(clientfd, response.c_str(), response.size(), 0);
@@ -424,6 +451,8 @@ void Server::client_loop(int clientfd)
 
 	if (state.file_fd >= 0)
 		close(state.file_fd);
+
+	std::cout << "Leaving client loop" << std::endl;
 }
 
 void Server::handle_client(int clientfd)

@@ -2,6 +2,7 @@
 #include <netinet/in.h>   // sockaddr_in, INADDR_ANY, htons()
 #include <arpa/inet.h>    // inet_addr() if needed
 #include <unistd.h>       // close()
+#include <fcntl.h>
 
 #include <openssl/crypto.h>
 
@@ -74,6 +75,9 @@ int main()
 			perror("Failed to accept connection.");
 			continue;
 		}
+
+		int flags = fcntl(clientfd, F_GETFL, 0);
+		fcntl(clientfd, F_SETFL, flags | O_NONBLOCK);
 		
 		char ip[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &client_addr.sin_addr, ip, sizeof(ip));
@@ -90,7 +94,7 @@ int main()
 					<< " on port " << connection.port << " with file descriptor "
 					<< connection.fd << std::endl;
 		
-		std::thread t(handle_client, clientfd);
+		std::thread t(Server::handle_client, clientfd);
 		t.detach();
 	}
 	

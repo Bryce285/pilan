@@ -24,7 +24,7 @@
 class Server 
 {
 	public:
-		void handle_client(int clientfd);
+		static void handle_client(int clientfd);
 		
 	private:
 		// TODO - make sure auth actually times out after 30s
@@ -56,16 +56,53 @@ class Server
 			int file_fd = -1;
 		};
 
-		void set_timeout(int clientfd);
-		std::string load_auth_key();
-		bool authenticate(int clientfd);
+		static void set_timeout(int clientfd);
+		static std::string load_auth_key();
+		static bool authenticate(int clientfd);
 
-		bool upload_file(ClientState& state);
-		bool download_file(ClientState& state, int clientfd);
-		void list_files(ClientState& state, int clientfd);
-		void delete_file(ClientState& state);
+		template <size_t N>
+		static bool upload_file(ClientState& state, const char (&buf)[N], ssize_t n)
+		{
+			bool done = false;
+
+			std::string ifilename = state.ifilename + ".tmp";
+			std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + ifilename;
+
+			// check if temp file for ofilename exists, create it if not
+			if (!std::filesystem::exists(ifilepath)) {
+				std::ofstream tmp(ifilename);
+			}
+				
+			std::ofstream outFile(ifilename, std::ios::binary | std::ios::app);
+			if (!outFile.is_open()) {
+				std::cerr << "Failed to open " << ifilename << " for upload." << std::endl;
+			}
+
+			// if bytes_remaining > 0 write binary data from recv to file
+			if (state.in_bytes_remaining > 0) {
+				const char* constPtr = buf;
+				outFile.write(constPtr, n);
+				state.in_bytes_remaining -= n;
+				outFile.close();
+				return done;
+			}
+
+			// if there are no bytes left to write, make temp file permanent
+			std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ifilename;
+			std::filesystem::rename(ifilepath, permPath);
+			//TODO - handle rename error
+
+			state.command = DEFAULT;
+			state.connected = false;
+			done = true;
+			return done;
+		}	
+
+		static bool download_file(ClientState& state, int clientfd);
+		static void list_files(ClientState& state, int clientfd);
+		static void delete_file(ClientState& state, int clientfd);
 		
-		std::string parse_msg(ClientState& state, size_t pos);
+		static std::string parse_msg(ClientState& state, size_t pos, int clientfd);
 
-		void client_loop(int clientfd);
+		static void client_loop(int clientfd);
 };
