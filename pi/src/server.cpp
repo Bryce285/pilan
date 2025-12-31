@@ -275,7 +275,10 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 		// TODO - handle errors for unexpected input
 		std::istringstream iss(line);
 		std::string cmd;
-		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
+		size_t filesize_net;
+		iss >> cmd >> state.ifilename >> filesize_net;
+
+		state.in_bytes_remaining = be64toh(filesize_net);
 				
 		state.command = UPLOAD;
 		response = "UPLOADING\n";
@@ -325,19 +328,17 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 	return response;	
 }
 
+// TODO - clean up this fuck ass loop
 void Server::client_loop(int clientfd)
 {
 	ClientState state;
 	char buf[4096];
+	ssize_t n = 0;
 	
 	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
-
+	
 	while (state.connected) {
-		
-		ssize_t n = 0;
-
-		//std::cout << "reached switch" << std::endl;
-
+			
 		switch (state.command) {
 			case LIST: {
 				
@@ -347,7 +348,7 @@ void Server::client_loop(int clientfd)
 
 			case UPLOAD: {
 				
-				if (!upload_file(state, buf, n)) continue;
+				upload_file(state, buf, n);
 				break;
 			}
 
@@ -367,13 +368,9 @@ void Server::client_loop(int clientfd)
 				break;
 			}
 		}
-
-		//std::cout << "reading bytes" << std::endl;
 		
 		// recieve data from the client
 		n = recv(clientfd, buf, sizeof(buf), 0);
-		
-		//std::cout << "stopped reading bytes" << std::endl;
 
 		if (n == 0) {
 			state.connected = false;
@@ -391,10 +388,10 @@ void Server::client_loop(int clientfd)
 		}
 
 		if (n > 0) state.rx_buffer.append(buf, n);
-	
-		/*	
-		std::cout << "reached switch" << std::endl;
 		
+		if (state.command == UPLOAD) continue;
+	
+		/*
 		switch (state.command) {
 			case LIST: {
 				

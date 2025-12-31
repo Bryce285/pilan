@@ -50,6 +50,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		std::uintmax_t size_net = htobe64(filesize);
 
 		data.append(keyword + " " + filename + " " + std::to_string(size_net) + "\n");
+		
+		std::cout << "Command sent: " << data << std::endl;
 
 		send_header(data, sock);
 		send_binary(filepath, sock);
@@ -109,6 +111,8 @@ void Client::parse_msg(ServerState& state, size_t pos)
 	// if the server is sending back binary data, recieve it and store it locally
 	if (line.rfind("DOWNLOAD", 0) == 0) {
 		std::cout << "[INFO] Downloading file" << std::endl;
+		
+		// TODO - need to parse the header and get the file size (dont forget to convert)
 
 		state.command = DOWNLOAD;
 	}

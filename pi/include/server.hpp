@@ -59,10 +59,13 @@ class Server
 		static void set_timeout(int clientfd);
 		static std::string load_auth_key();
 		static bool authenticate(int clientfd);
-
+		
+		// TODO - don't write metadata sent in header to the actual file
 		template <size_t N>
 		static bool upload_file(ClientState& state, const char (&buf)[N], ssize_t n)
 		{
+			std::cout << "Entered upload function" << std::endl;
+
 			bool done = false;
 
 			std::string ifilename = state.ifilename + ".tmp";
@@ -70,16 +73,16 @@ class Server
 
 			// check if temp file for ofilename exists, create it if not
 			if (!std::filesystem::exists(ifilepath)) {
-				std::ofstream tmp(ifilename);
+				std::ofstream tmp(ifilepath);
 			}
 				
-			std::ofstream outFile(ifilename, std::ios::binary | std::ios::app);
+			std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
 			if (!outFile.is_open()) {
-				std::cerr << "Failed to open " << ifilename << " for upload." << std::endl;
+				std::cerr << "Failed to open " << ifilepath.string() << " for upload." << std::endl;
 			}
 
 			// if bytes_remaining > 0 write binary data from recv to file
-			if (state.in_bytes_remaining > 0) {
+			if (n > 0 && state.in_bytes_remaining > 0) {
 				const char* constPtr = buf;
 				outFile.write(constPtr, n);
 				state.in_bytes_remaining -= n;
