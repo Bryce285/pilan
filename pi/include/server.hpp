@@ -60,47 +60,7 @@ class Server
 		static std::string load_auth_key();
 		static bool authenticate(int clientfd);
 		
-		// TODO - don't write metadata sent in header to the actual file
-		template <size_t N>
-		static bool upload_file(ClientState& state, const char (&buf)[N], ssize_t n)
-		{
-			std::cout << "Entered upload function" << std::endl;
-
-			bool done = false;
-
-			std::string ifilename = state.ifilename + ".tmp";
-			std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + ifilename;
-
-			// check if temp file for ofilename exists, create it if not
-			if (!std::filesystem::exists(ifilepath)) {
-				std::ofstream tmp(ifilepath);
-			}
-				
-			std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
-			if (!outFile.is_open()) {
-				std::cerr << "Failed to open " << ifilepath.string() << " for upload." << std::endl;
-			}
-
-			// if bytes_remaining > 0 write binary data from recv to file
-			if (n > 0 && state.in_bytes_remaining > 0) {
-				const char* constPtr = buf;
-				outFile.write(constPtr, n);
-				state.in_bytes_remaining -= n;
-				outFile.close();
-				return done;
-			}
-
-			// if there are no bytes left to write, make temp file permanent
-			std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ifilename;
-			std::filesystem::rename(ifilepath, permPath);
-			//TODO - handle rename error
-
-			state.command = DEFAULT;
-			state.connected = false;
-			done = true;
-			return done;
-		}	
-
+		static bool upload_file(ClientState& state);
 		static bool download_file(ClientState& state, int clientfd);
 		static void list_files(ClientState& state, int clientfd);
 		static void delete_file(ClientState& state, int clientfd);

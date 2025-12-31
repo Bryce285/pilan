@@ -100,6 +100,47 @@ bool Server::authenticate(int clientfd)
 	return true;
 }
 
+bool Server::upload_file(ClientState& state)
+{
+	std::cout << "Entered upload function" << std::endl;
+
+	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
+	std::string ifilename = state.ifilename + ".tmp";
+	std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + ifilename;
+
+	// check if temp file for ofilename exists, create it if not
+	if (!std::filesystem::exists(ifilepath)) {
+		std::ofstream tmp(ifilepath);
+	}
+				
+	std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
+	if (!outFile.is_open()) {
+		std::cerr << "Failed to open " << ifilepath.string() << " for upload." << std::endl;
+	}
+
+	// if bytes_remaining > 0 write binary data from recv to file
+	if (to_write > 0 && state.in_bytes_remaining > 0) {
+		outFile.write(state.rx_buffer.data(), to_write);
+		state.in_bytes_remaining -= to_write;
+		state.rx_buffer.erase(0, to_write);
+		outFile.close();
+
+		if (state.in_bytes_remaining == 0) {
+						
+			std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ifilename;
+			std::filesystem::rename(ifilepath, permPath);
+			//TODO - handle rename error
+			state.command = DEFAULT;
+			state.connected = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	return false;
+}	
+
 bool Server::download_file(ClientState& state, int clientfd)
 {
 	bool done = false;
@@ -328,7 +369,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 	return response;	
 }
 
-// TODO - clean up this fuck ass loop
 void Server::client_loop(int clientfd)
 {
 	ClientState state;
@@ -339,36 +379,6 @@ void Server::client_loop(int clientfd)
 	
 	while (state.connected) {
 			
-		switch (state.command) {
-			case LIST: {
-				
-				list_files(state, clientfd);	
-				break;
-			}
-
-			case UPLOAD: {
-				
-				upload_file(state, buf, n);
-				break;
-			}
-
-			case DOWNLOAD: {
-				
-				if (!download_file(state, clientfd)) continue;
-				break;
-			}
-
-			case DELETE: {
-				
-				delete_file(state, clientfd);
-				break;
-			}
-
-			default: {
-				break;
-			}
-		}
-		
 		// recieve data from the client
 		n = recv(clientfd, buf, sizeof(buf), 0);
 
@@ -389,9 +399,30 @@ void Server::client_loop(int clientfd)
 
 		if (n > 0) state.rx_buffer.append(buf, n);
 		
-		if (state.command == UPLOAD) continue;
-	
-		/*
+		if (state.command == DEFAULT) {
+			std::cout << "assembling protocol message" << std::endl;
+		
+			// assemble protocol messages
+			size_t pos;
+			while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
+
+				std::string response = parse_msg(state, pos, clientfd);
+
+				// send response
+				ssize_t sent = send(clientfd, response.c_str(), response.size(), 0);
+				if (sent < 0) {
+					perror("send failed");
+					state.connected = false;
+					break;
+				}	
+
+				if (response == "200 BYE\n") {
+					state.connected = false;
+					break;
+				}
+			}
+		}
+
 		switch (state.command) {
 			case LIST: {
 				
@@ -401,7 +432,7 @@ void Server::client_loop(int clientfd)
 
 			case UPLOAD: {
 				
-				if (!upload_file(state, buf, n)) continue;
+				if (!upload_file(state)) continue;
 				break;
 			}
 
@@ -418,29 +449,6 @@ void Server::client_loop(int clientfd)
 			}
 
 			default: {
-				break;
-			}
-		}
-		*/
-
-		std::cout << "assembling protocol message" << std::endl;
-		
-		// assemble protocol messages
-		size_t pos;
-		while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
-
-			std::string response = parse_msg(state, pos, clientfd);
-
-			// send response
-			ssize_t sent = send(clientfd, response.c_str(), response.size(), 0);
-			if (sent < 0) {
-				perror("send failed");
-				state.connected = false;
-				break;
-			}
-
-			if (response == "200 BYE\n") {
-				state.connected = false;
 				break;
 			}
 		}
