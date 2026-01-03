@@ -119,7 +119,7 @@ bool Server::upload_file(ClientState& state)
 	}
 
 	// if bytes_remaining > 0 write binary data from recv to file
-	if (to_write > 0 && state.in_bytes_remaining > 0) {
+	if (to_write > 0) {
 		outFile.write(state.rx_buffer.data(), to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
@@ -131,7 +131,6 @@ bool Server::upload_file(ClientState& state)
 			std::filesystem::rename(ifilepath, permPath);
 			//TODO - handle rename error
 			state.command = DEFAULT;
-			state.connected = false;
 			return true;
 		}
 
@@ -145,25 +144,26 @@ bool Server::download_file(ClientState& state, int clientfd)
 {
 	bool done = false;
 
-	std::filesystem::path ofilepath = state.ofilename;
+	std::filesystem::path ofilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ofilename;
 
 	// check if ifilename exists
 	if (!std::filesystem::exists(ofilepath)) {
-		std::cerr << "File " << state.ofilename << " could not be found" << std::endl;
+		std::cerr << "File " << ofilepath.string() << " could not be found" << std::endl;
 		state.connected = false;
 		return done;
 	}
 
-	std::ifstream inFile(state.ofilename, std::ios::binary | std::ios::ate);
+	std::ifstream inFile(ofilepath, std::ios::binary);
 	if (!inFile.is_open()) {
-		std::cerr << "Failed to open " << state.ofilename << std::endl;
+		std::cerr << "Failed to open " << ofilepath.string() << std::endl;
 	}
-
+	
 	// get file size and send metadata
 	std::uintmax_t size = std::filesystem::file_size(ofilepath);
-	std::uintmax_t size_net = htobe64(size);
-	std::string metadata = "DOWNLOAD " + state.ifilename + std::to_string(size_net) + "\n";		
-				
+	std::string metadata = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";		
+	
+	std::cout << "[INFO] Sending command: " << metadata << std::endl;
+
 	size_t total = 0;
 	while (total < metadata.size()) {
 		ssize_t sent = send(clientfd, metadata.c_str() + total, metadata.size() - total, 0);
@@ -184,7 +184,6 @@ bool Server::download_file(ClientState& state, int clientfd)
 	}
 				
 	state.command = DEFAULT;
-	state.connected = false;
 	done = true;
 	return done;
 }
@@ -231,7 +230,6 @@ void Server::list_files(ClientState& state, int clientfd)
 	std::cout << message << std::endl;
 
 	state.command = DEFAULT;
-	state.connected = false;	
 }
 
 void Server::delete_file(ClientState& state, int clientfd)
@@ -277,7 +275,6 @@ void Server::delete_file(ClientState& state, int clientfd)
 	}
 	
 	state.command = DEFAULT;
-	state.connected = false;
 }
 
 std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
@@ -316,11 +313,8 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 		// TODO - handle errors for unexpected input
 		std::istringstream iss(line);
 		std::string cmd;
-		size_t filesize_net;
-		iss >> cmd >> state.ifilename >> filesize_net;
+		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
 
-		state.in_bytes_remaining = be64toh(filesize_net);
-				
 		state.command = UPLOAD;
 		response = "UPLOADING\n";
 	}
@@ -338,7 +332,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 		iss >> cmd >> state.ofilename;	
 
 		state.command = DOWNLOAD;
-		response = "DOWNLOADING\n";
 	}
 	else if (line.rfind("DELETE", 0) == 0) {
 

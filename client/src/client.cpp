@@ -47,9 +47,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		filename = filepath.filename().string();
 		filesize = std::filesystem::file_size(filepath);
-		std::uintmax_t size_net = htobe64(filesize);
 
-		data.append(keyword + " " + filename + " " + std::to_string(size_net) + "\n");
+		data.append(keyword + " " + filename + " " + std::to_string(filesize) + "\n");
 		
 		std::cout << "Command sent: " << data << std::endl;
 
@@ -110,9 +109,14 @@ void Client::parse_msg(ServerState& state, size_t pos)
 
 	// if the server is sending back binary data, recieve it and store it locally
 	if (line.rfind("DOWNLOAD", 0) == 0) {
+		std::cout << "[INFO] Command received: " << line << std::endl;
 		std::cout << "[INFO] Downloading file" << std::endl;
-		
-		// TODO - need to parse the header and get the file size (dont forget to convert)
+			
+		std::istringstream iss(line);
+		std::string cmd;
+		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
+
+		std::cout << "Keyword: [" << cmd << "], filename: [" << state.ifilename << "], filesize: [" << state.in_bytes_remaining << "]\n";
 
 		state.command = DOWNLOAD;
 	}
@@ -122,13 +126,51 @@ void Client::parse_msg(ServerState& state, size_t pos)
 	}
 }
 
+bool Client::download_file(ServerState& state)
+{
+	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
+	std::string ifilename = state.ifilename + ".tmp";
+	std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/client/local_storage_test/" + ifilename;
+
+	std::cout << "[INFO] Downloading " << ifilepath << std::endl;
+
+	if (!std::filesystem::exists(ifilepath)) {
+		std::ofstream tmp(ifilepath);
+	}
+
+	std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
+	if (!outFile.is_open()) {
+		std::cerr << "Failed to open " << ifilepath.string() << " for download." << std::endl;
+	}
+
+	if (to_write > 0) {
+		outFile.write(state.rx_buffer.data(), to_write);
+		state.in_bytes_remaining -= to_write;
+		state.rx_buffer.erase(0, to_write);
+		outFile.close();
+	}
+				
+	if (state.in_bytes_remaining == 0) {
+		std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/client/local_storage_test/" + state.ifilename;
+		std::filesystem::rename(ifilepath, permPath);
+		// TODO - handle rename error
+
+		std::cout << "[INFO] Download finished. Permanent path: " << permPath << std::endl;
+
+		state.command = DEFAULT;
+		state.connected = false;
+		return true;
+	}
+
+	return false;
+}
+
 void Client::handle_server_msg(ServerState& state, int sock)
 {
 	char buf[4096];
 
 	while (state.connected) {
 
-		// TODO - need to recieve the data in its own loop so it doesn't block the rest of the loop
 		ssize_t n = recv(sock, buf, sizeof(buf), 0);
 
 		if (n == 0) {
@@ -136,23 +178,29 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			break;
 		}
 
-		// treat timeouts as disconnections
 		if (n < 0) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+			if (errno != EWOULDBLOCK && errno != EAGAIN) {
+				std::cerr << "recv failed" << std::endl;
 				state.connected = false;
 				break;
 			}
-
-			std::cerr << "recv failed" << std::endl;
-			state.connected = false;
-			break;
+			
+			continue;
 		}
 
-		state.rx_buffer.append(buf, n);
+		if (n > 0) state.rx_buffer.append(buf, n);
+		
+		// assemble protocol messages from server
+		if (state.command == DEFAULT) {
+			size_t pos;
+			while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
+				parse_msg(state, pos);
+			}
+		}
 
 		switch (state.command) {
 			case DOWNLOAD: {
-				if (!download_file(state, buf, n, sock)) continue;
+				if (!download_file(state)) continue;
 				break;
 			}
 			
@@ -163,12 +211,6 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			default: {
 				break;
 			}
-		}
-
-		// assemble protocol messages from server
-		size_t pos;
-		while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
-			parse_msg(state, pos);
 		}
 	}
 }

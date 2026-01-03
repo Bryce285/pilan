@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <thread>
 #include <chrono>
 
@@ -20,6 +21,9 @@ int main() {
         std::cerr << "Connection failed\n";
         return 1;
     }
+
+	int flags = fcntl(sock, F_GETFL, 0);
+	fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 	
 	// AUTH STRING MUST BE NULL && NEWLINE TERMINATED
     std::string auth_msg = "AUTH jarlsberg\n\0";
