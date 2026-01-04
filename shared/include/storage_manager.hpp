@@ -1,6 +1,8 @@
 #include <filesystem>
 #include <openssl/sha.h>
 
+#include "stream_writer.hpp"
+
 #pragma once
 
 class StorageManager
@@ -28,6 +30,7 @@ class StorageManager
 		FileInfo get_file_info(const std::string& name) const;
 		std::vector<FileInfo> list_files() const;
 		void delete_file(const std::string& name);
+		void stream_file(std::string& name, StreamWriter& writer);
 
 	private:
 		struct UploadHandle {
