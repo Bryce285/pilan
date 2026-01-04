@@ -1,3 +1,3 @@
 ### TODO
-* test/verify/fix upload, download, list, and delete functionality
-* refactor client-side main.cpp
+* finish storage manager
+* integrate storage manager into existing server and client code
