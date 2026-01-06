@@ -48,7 +48,7 @@ void StorageManager::commit_upload(UploadHandle& handle)
 	rename(handle.tmp_path.c_str(), handle.final_path.c_str());
 	
 	// TODO - eventually use SQLite to store metadata
-	// TODO - write metadata to json file
+	// TODO - write metadata to json file (remember to fsync)
 
 	handle.active = false;
 }
@@ -66,32 +66,63 @@ void StorageManager::abort_upload(UploadHandle& handle)
 FileInfo StorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
+	std::filesystem::path path = config.files_dir / name;	
 
 	// create a FileInfo object
+	FileInfo file_info;
 
 	// fill out FileInfo object with file metadata
+	// TODO - open and parse json metadata file
+
+	return file_info;
 }
 
 std::vector<FileInfo> StorageManager::list_files()
 {
-	// iterate through files directory
+	std::vector<FileInfo> files;
 
-	// call get_file_info for each file and add to a vector
+	// iterate through files directory
+	try {
+		for (const auto& file : std::filesystem::directory_iterator(config.files_dir)) {
+			if (std::filesystem::is_regular_file(file.status())) {
+				files.push_back(get_file_info(file.string()));
+			}
+		}
+	}
+	catch (const std::filesystem::filesystem_error& e) {
+		std::cerr << "Filesystem error: " << e.what() << std::endl;
+	}
 
 	// return vector
+	return files;
 }
 
 void StorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
+	std::filesystem::path path = config.files_dir / name;	
 
 	// rename (name.deleting)
+	std::filesystem::rename(path, path + ".deleting");
 
-	// fsync
+	int dir_fd = open(parent_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	if (dir_fd >= 0) {
+		fsync(dir_fd);
+		close(dir_fd);
+	}
 
 	// delete the file
+	// TODO - check that this deletes the renamed path
+	std::filsystem::remove(path);
+
+	int dir_fd = open(parent_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	if (dir_fd >= 0) {
+		fsync(dir_fd);
+		close(dir_fd);
+	}
 
 	// delete metadata
+	// TODO - delete json metadata file (remember to fsync)
 }
 
 void StorageManager::stream_file(std::string& name, StreamWriter& writer)
