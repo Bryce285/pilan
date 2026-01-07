@@ -1,5 +1,9 @@
 #include <filesystem>
 #include <openssl/sha.h>
+#include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
+#include <chrono>
 
 #include "stream_writer.hpp"
 
@@ -56,5 +60,7 @@ class StorageManager
 		};
 		
 		StorageConfig config;
+
+		uint64_t unix_timestamp_ms();
 
 };

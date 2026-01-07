@@ -1,5 +1,15 @@
 #include "storage_manager.hpp"
 
+using json = nlohmann::json;
+
+uint64_t StorageManager::unix_timestamp_ms()
+{
+	using namespace std::chrono;
+    return duration_cast<milliseconds>(
+        system_clock::now().time_since_epoch()
+    ).count();
+}
+
 StorageManager::StorageManager(const StorageConfig& config) 
 {
 	this->config = config;
@@ -41,14 +51,34 @@ void StorageManager::commit_upload(UploadHandle& handle)
 	if (handle.bytes_written != handle.expected_size) {
 		throw std::runtime_error("File size mismatch");
 	}
+	
+	rename(handle.tmp_path.c_str(), handle.final_path.c_str());
 
 	fsync(handle.fd);
 	close(handle.fd);
-
-	rename(handle.tmp_path.c_str(), handle.final_path.c_str());
 	
 	// TODO - eventually use SQLite to store metadata
-	// TODO - write metadata to json file (remember to fsync)
+	
+	std::ofstream outFile(handle.meta_path);
+	if (!outFile.is_open()) {
+		std::cerr << "Failed to open " << handle.meta_path.string() << std::endl;
+	}
+	
+	// write name, size, hash, and creation timestamp to metadata file
+	json metadata;
+	metadata["name"] = handle.final_path.filename();
+	metadata["size_bytes"] = handle.expected_size;
+	metadata["sha256"] = handle.hash_ctx;
+	metadata["created_at"] = std::to_string(unix_timestamp_ms());
+
+	outFile << metadata;
+	outFile.close();
+
+	int dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	if (dir_fd >= 0) {
+		fsync(dir_fd);
+		close(dir_fd);
+	}
 
 	handle.active = false;
 }
@@ -66,14 +96,21 @@ void StorageManager::abort_upload(UploadHandle& handle)
 FileInfo StorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
-	std::filesystem::path path = config.files_dir / name;	
+	std::filesystem::path path = config.files_dir / name + ".json";	
 
 	// create a FileInfo object
 	FileInfo file_info;
 
 	// fill out FileInfo object with file metadata
-	// TODO - open and parse json metadata file
+	std::ifstream inFile(path);
+	json metadata{json::parse(inFile)};
+	
+	file_info.name = metadata["name"];
+	file_info.size_bytes = static_cast<uint64_t>(metadata["size_bytes"]);
+	file_info.sha256 = metadata["sha256"];
+	file_info.created_at = static_cast<uint64_t>(metadata["created_at"]);
 
+	inFile.close();
 	return file_info;
 }
 
@@ -105,7 +142,7 @@ void StorageManager::delete_file(const std::string& name)
 	// rename (name.deleting)
 	std::filesystem::rename(path, path + ".deleting");
 
-	int dir_fd = open(parent_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
 		fsync(dir_fd);
 		close(dir_fd);
@@ -113,16 +150,31 @@ void StorageManager::delete_file(const std::string& name)
 
 	// delete the file
 	// TODO - check that this deletes the renamed path
-	std::filsystem::remove(path);
+	std::filesystem::remove(path);
 
-	int dir_fd = open(parent_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
 		fsync(dir_fd);
 		close(dir_fd);
 	}
 
 	// delete metadata
-	// TODO - delete json metadata file (remember to fsync)
+	std::filesystem::path meta_path = config.meta_dir / name + ".json";
+	std::filesystem::rename(meta_path, meta_path + ".deleting");
+
+	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	if (meta_dir_fd >= 0) {
+		fsync(meta_dir_fd);
+		close(meta_dir_fd);
+	}
+
+	std::filesystem::remove(meta_path);
+
+	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	if (meta_dir_fd >= 0) {
+		fsync(meta_dir_fd);
+		close(meta_dir_fd);
+	}
 }
 
 void StorageManager::stream_file(std::string& name, StreamWriter& writer)
