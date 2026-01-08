@@ -66,7 +66,7 @@ class Server
 		static bool authenticate(int clientfd);
 		
 		static bool upload_file(ClientState& state);
-		static bool download_file(ClientState& state, int clientfd);
+		static void download_file(ClientState& state, int clientfd);
 		static void list_files(ClientState& state, int clientfd);
 		static void delete_file(ClientState& state, int clientfd);
 		

@@ -204,7 +204,13 @@ void StorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
 	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
+	FileInfo file_info = get_file_info(name);
+	uint64_t size = file_info.size_bytes;
+
+	std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
 	
+	writer.write(header.c_str(), sizeof(header));
+
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
 		throw FileNotFound();
@@ -215,12 +221,14 @@ void StorageManager::stream_file(std::string& name, StreamWriter& writer)
 	uint8_t buffer[CHUNK];
 
 	// streaming loop
-	while (true) {
+	size_t total = 0;
+	while (total < size) {
 		ssize_t n = read(fd, buffer, CHUNK);
 		if (n == 0) break;
 		if (n < 0) throw IOError();
 		
 		writer.write(buffer, n);
+		total += n;
 	}
 
 	// close file

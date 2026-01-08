@@ -7,8 +7,8 @@ Server::Server()
 		.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/";
 		.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/";
 		.meta_dir = "/home/bryce/projects/offlinePiFS/pi/data/meta/";
-		.max_file_size = 1000000000;
-		.max_total_size = 10000000000;
+		.max_file_size = 1000000000; // 1GB
+		.max_total_size = 10000000000; // 10GB
 		.read_only = false;
 	};
 
@@ -140,52 +140,18 @@ bool Server::upload_file(ClientState& state)
 	return false;
 }	
 
-bool Server::download_file(ClientState& state, int clientfd)
+void Server::download_file(ClientState& state, int clientfd)
 {
-	bool done = false;
+	SocketStreamWriter writer(clientfd);
 
-	std::filesystem::path ofilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ofilename;
-
-	// check if ifilename exists
-	if (!std::filesystem::exists(ofilepath)) {
-		std::cerr << "File " << ofilepath.string() << " could not be found" << std::endl;
-		state.connected = false;
-		return done;
+	try {
+		storage_manager.stream_file(ofilename, writer);	
 	}
-
-	std::ifstream inFile(ofilepath, std::ios::binary);
-	if (!inFile.is_open()) {
-		std::cerr << "Failed to open " << ofilepath.string() << std::endl;
-	}
-	
-	// get file size and send metadata
-	std::uintmax_t size = std::filesystem::file_size(ofilepath);
-	std::string metadata = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";		
-	
-	std::cout << "[INFO] Sending command: " << metadata << std::endl;
-
-	size_t total = 0;
-	while (total < metadata.size()) {
-		ssize_t sent = send(clientfd, metadata.c_str() + total, metadata.size() - total, 0);
-		if (sent <= 0) {
-			std::cerr << "Failed to send metadata" << std::endl;
-		}
-
-		total += sent;
-	}
-
-	// send binary data
-	char buf[4096];
-	while (inFile.read(buf, sizeof(buf)) || inFile.gcount() > 0) {
-		ssize_t sent = send(clientfd, buf, inFile.gcount(), 0);
-		if (sent <= 0) {
-			std::cerr << "Binary data failed to send" << std::endl;	
-		}
+	catch (const std::exception& e) {
+		std::cerr << "Failed to stream file: " << e.what() << std::endl;
 	}
 				
 	state.command = DEFAULT;
-	done = true;
-	return done;
 }
 
 void Server::list_files(ClientState& state, int clientfd)
@@ -396,7 +362,7 @@ void Server::client_loop(int clientfd)
 
 			case DOWNLOAD: {
 				
-				if (!download_file(state, clientfd)) continue;
+				download_file(state, clientfd);
 				break;
 			}
 
