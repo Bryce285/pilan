@@ -19,16 +19,21 @@
 #include <csignal>
 #include <cstring>
 
+#include "storage_manager.hpp"
+#include "stream_writer.hpp"
+
 #pragma once
 
 class Server 
 {
 	public:
+		Server();
 		static void handle_client(int clientfd);
 		
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
+		StorageManager::UploadHandle cur_upload_handle;
 
 		enum Command 
 		{

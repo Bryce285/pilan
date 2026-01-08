@@ -1,5 +1,20 @@
 #include "server.hpp"
 
+Server::Server()
+{
+	StorageConfig config {
+		.root = "/home/bryce/projects/offlinePiFS/pi/data/";
+		.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/";
+		.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/";
+		.meta_dir = "/home/bryce/projects/offlinePiFS/pi/data/meta/";
+		.max_file_size = 1000000000;
+		.max_total_size = 10000000000;
+		.read_only = false;
+	};
+
+	StorageManager storage_manager(config);
+}
+
 void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
@@ -105,31 +120,16 @@ bool Server::upload_file(ClientState& state)
 	std::cout << "Entered upload function" << std::endl;
 
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
-	std::string ifilename = state.ifilename + ".tmp";
-	std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + ifilename;
-
-	// check if temp file for ofilename exists, create it if not
-	if (!std::filesystem::exists(ifilepath)) {
-		std::ofstream tmp(ifilepath);
-	}
-				
-	std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
-	if (!outFile.is_open()) {
-		std::cerr << "Failed to open " << ifilepath.string() << " for upload." << std::endl;
-	}
 
 	// if bytes_remaining > 0 write binary data from recv to file
 	if (to_write > 0) {
-		outFile.write(state.rx_buffer.data(), to_write);
+		// TODO - might need to change data type of write_chunk data arg to account for max possible size of rx_buffer
+		storage_manager.write_chunk(cur_upload_handle, state.rx_buffer, to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
-		outFile.close();
 
 		if (state.in_bytes_remaining == 0) {
-						
-			std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test/" + state.ifilename;
-			std::filesystem::rename(ifilepath, permPath);
-			//TODO - handle rename error
+			storage_manager.commit_upload();						
 			state.command = DEFAULT;
 			return true;
 		}
@@ -191,24 +191,12 @@ bool Server::download_file(ClientState& state, int clientfd)
 void Server::list_files(ClientState& state, int clientfd)
 {
 	std::cout << "Entered list function" << std::endl;
-
-	std::filesystem::path path = "/home/bryce/projects/offlinePiFS/pi/pi_storage_test"; // TODO - need to change this for deployment on the pi
-	std::vector<std::string> filepaths;
-
-	try {
-		for (const auto& entry : std::filesystem::directory_iterator(path)) {
-			if (std::filesystem::is_regular_file(entry.status())) {
-				filepaths.push_back(entry.path().string());
-			}
-		}
-	} 
-	catch (const std::filesystem::filesystem_error& e) {
-		std::cerr << "Filesystem error: " << e.what() << std::endl;
-	}
+	
+	std::vector<StorageManager::FileInfo> files = storage_manager.list_files();
 
 	std::string message;
-	for (int i = 0; i < filepaths.size(); i++) {
-		message.append(filepaths[i] + "\n");
+	for (int i = 0; i < files.size(); i++) {
+		message.append(files[i].name + "\n");
 	}
 	
 	std::cout << "Attempting to send files list" << std::endl;
@@ -234,33 +222,9 @@ void Server::list_files(ClientState& state, int clientfd)
 
 void Server::delete_file(ClientState& state, int clientfd)
 {
-	// TODO - prevent directory traversal attacks
-	std::filesystem::path file = std::filesystem::path("/home/bryce/projects/offlinePiFS/pi/pi_storage_test/") / state.file_to_delete;
-	std::string message;
-	
-	std::cout << "Attempting to delete: " << file << std::endl;
-	
-	std::cout << "Raw filename: [" << state.file_to_delete << "]\n";
+	storage_manager.delete_file(state.file_to_delete);
 
-	if (std::filesystem::is_directory(file)) {
-    	std::cout << "ERROR: This is a directory, not a file" << std::endl;
-	}
-	if (!std::filesystem::exists(file)) {
-    	std::cout << "ERROR: File does not exist" << std::endl;
-	}
-
-	try {
-		if (std::filesystem::remove(file)) {
-			message = "File deleted: " + file.string();
-		}
-		else {
-			message = "File could not be deleted" + file.string();
-		}
-	}
-	catch (const std::filesystem::filesystem_error& e) {
-		std::cerr << "Filesystem error: " << e.what() << std::endl;
-	}
-	
+	std::string message = "File deleted\n"	
 	const char* data_ptr = message.c_str();
 	size_t total = 0;
 	while (total < message.size()) {
@@ -314,7 +278,8 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 		std::istringstream iss(line);
 		std::string cmd;
 		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
-
+		
+		cur_upload_handle = storage_manager.start_upload(state.ifilename, state.in_bytes_remaining);
 		state.command = UPLOAD;
 		response = "UPLOADING\n";
 	}

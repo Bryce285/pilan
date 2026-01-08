@@ -10,6 +10,25 @@ uint64_t StorageManager::unix_timestamp_ms()
     ).count();
 }
 
+std::string StorageManager::sanitize_filename(std::string name)
+{
+	const std::string invalid_chars = R"literal(<>:\"/\\|?*)literal";
+	for (char c : invalid_chars) {
+		std::replace(name.begin(), name.end(), c, '_');
+	}
+	
+	filename.erase(std::remove_if(filename.begin(), filename.end(), [](unsigned char x) {
+        return std::iscntrl(x);
+    }), filename.end());
+
+	while (name.find("..") != std::string::npos) {
+        size_t pos = name.find("..");
+        name.replace(pos, 2, "");
+    }
+
+	return name;
+}
+
 StorageManager::StorageManager(const StorageConfig& config) 
 {
 	this->config = config;
@@ -17,11 +36,12 @@ StorageManager::StorageManager(const StorageConfig& config)
 
 UploadHandle StorageManager::start_upload(const std::string& name, size_t size)
 {
+	std::string name_sanitized = sanitize_filename(name);
 	UploadHandle handle;
 
-	handle.tmp_path = config.tmp_dir / (name + ".tmp");
-	handle.final_path = config.files_dir / name;
-	handle.meta_path = config.meta_dir / (name + ".json");
+	handle.tmp_path = config.tmp_dir / (name_sanitized + ".tmp");
+	handle.final_path = config.files_dir / name_sanitized;
+	handle.meta_path = config.meta_dir / (name_sanitized + ".json");
 
 	handle.fd = open(handle.tmp_path.c_str(),
 						O_CREAT | O_EXCL | O_WRONLY,
@@ -83,6 +103,7 @@ void StorageManager::commit_upload(UploadHandle& handle)
 	handle.active = false;
 }
 
+// TODO - figure out where to use this method
 void StorageManager::abort_upload(UploadHandle& handle)
 {
 	if (!handle.active) return;
@@ -96,7 +117,7 @@ void StorageManager::abort_upload(UploadHandle& handle)
 FileInfo StorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
-	std::filesystem::path path = config.files_dir / name + ".json";	
+	std::filesystem::path path = config.files_dir / sanitize_filename(name) + ".json";	
 
 	// create a FileInfo object
 	FileInfo file_info;
@@ -130,27 +151,27 @@ std::vector<FileInfo> StorageManager::list_files()
 		std::cerr << "Filesystem error: " << e.what() << std::endl;
 	}
 
-	// return vector
 	return files;
 }
 
 void StorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
-	std::filesystem::path path = config.files_dir / name;	
+	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
+	std::filesystem::path path_deleting = path + ".deleting";
 
 	// rename (name.deleting)
-	std::filesystem::rename(path, path + ".deleting");
+	std::filesystem::rename(path, path_deleting);
 
 	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
 		fsync(dir_fd);
 		close(dir_fd);
 	}
-
+	
+	// TODO - add some error handling
 	// delete the file
-	// TODO - check that this deletes the renamed path
-	std::filesystem::remove(path);
+	std::filesystem::remove(path_deleting);
 
 	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
@@ -160,7 +181,9 @@ void StorageManager::delete_file(const std::string& name)
 
 	// delete metadata
 	std::filesystem::path meta_path = config.meta_dir / name + ".json";
-	std::filesystem::rename(meta_path, meta_path + ".deleting");
+	std::filesystem::path meta_path_deleting = meta_path + ".deleting";
+
+	std::filesystem::rename(meta_path, meta_path_deleting);
 
 	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (meta_dir_fd >= 0) {
@@ -168,7 +191,7 @@ void StorageManager::delete_file(const std::string& name)
 		close(meta_dir_fd);
 	}
 
-	std::filesystem::remove(meta_path);
+	std::filesystem::remove(meta_path_deleting);
 
 	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (meta_dir_fd >= 0) {
@@ -180,8 +203,7 @@ void StorageManager::delete_file(const std::string& name)
 void StorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
 	// validate and open file
-	// TODO - sanitize file name
-	std::filesystem::path path = config.files_dir / name;	
+	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
