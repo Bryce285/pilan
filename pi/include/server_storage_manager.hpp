@@ -9,7 +9,7 @@
 
 #pragma once
 
-class StorageManager
+class ServerStorageManager
 {
 	public:
 		struct StorageConfig {

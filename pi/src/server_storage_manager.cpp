@@ -1,8 +1,13 @@
-#include "storage_manager.hpp"
+#include "server_storage_manager.hpp"
 
 using json = nlohmann::json;
 
-uint64_t StorageManager::unix_timestamp_ms()
+ServerStorageManager::StorageManager(const StorageConfig& config) 
+{
+	this->config = config;
+}
+
+uint64_t ServerStorageManager::unix_timestamp_ms()
 {
 	using namespace std::chrono;
     return duration_cast<milliseconds>(
@@ -10,7 +15,7 @@ uint64_t StorageManager::unix_timestamp_ms()
     ).count();
 }
 
-std::string StorageManager::sanitize_filename(std::string name)
+std::string ServerStorageManager::sanitize_filename(std::string name)
 {
 	const std::string invalid_chars = R"literal(<>:\"/\\|?*)literal";
 	for (char c : invalid_chars) {
@@ -29,12 +34,7 @@ std::string StorageManager::sanitize_filename(std::string name)
 	return name;
 }
 
-StorageManager::StorageManager(const StorageConfig& config) 
-{
-	this->config = config;
-}
-
-UploadHandle StorageManager::start_upload(const std::string& name, size_t size)
+UploadHandle ServerStorageManager::start_upload(const std::string& name, size_t size)
 {
 	std::string name_sanitized = sanitize_filename(name);
 	UploadHandle handle;
@@ -56,7 +56,7 @@ UploadHandle StorageManager::start_upload(const std::string& name, size_t size)
 	return handle;	
 }
 
-void StorageManager::write_chunk(UploadHandle& handle, const uint8_t data, size_t len)
+void ServerStorageManager::write_chunk(UploadHandle& handle, const uint8_t data, size_t len)
 {
 	if (!handle.active) throw std::logic_error("Upload not active");
 
@@ -66,7 +66,7 @@ void StorageManager::write_chunk(UploadHandle& handle, const uint8_t data, size_
 	handle.bytes_written += len;
 }
 
-void StorageManager::commit_upload(UploadHandle& handle)
+void ServerStorageManager::commit_upload(UploadHandle& handle)
 {
 	if (handle.bytes_written != handle.expected_size) {
 		throw std::runtime_error("File size mismatch");
@@ -104,7 +104,7 @@ void StorageManager::commit_upload(UploadHandle& handle)
 }
 
 // TODO - figure out where to use this method
-void StorageManager::abort_upload(UploadHandle& handle)
+void ServerStorageManager::abort_upload(UploadHandle& handle)
 {
 	if (!handle.active) return;
 	
@@ -114,7 +114,7 @@ void StorageManager::abort_upload(UploadHandle& handle)
 	handle.active = false;
 }
 
-FileInfo StorageManager::get_file_info(const std::string& name)
+FileInfo ServerStorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name) + ".json";	
@@ -135,7 +135,7 @@ FileInfo StorageManager::get_file_info(const std::string& name)
 	return file_info;
 }
 
-std::vector<FileInfo> StorageManager::list_files()
+std::vector<FileInfo> ServerStorageManager::list_files()
 {
 	std::vector<FileInfo> files;
 
@@ -154,7 +154,7 @@ std::vector<FileInfo> StorageManager::list_files()
 	return files;
 }
 
-void StorageManager::delete_file(const std::string& name)
+void ServerStorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
@@ -200,7 +200,7 @@ void StorageManager::delete_file(const std::string& name)
 	}
 }
 
-void StorageManager::stream_file(std::string& name, StreamWriter& writer)
+void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
 	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	

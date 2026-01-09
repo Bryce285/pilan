@@ -8,6 +8,9 @@
 #include <filesystem>
 #include <fstream>
 
+#include "client_storage_manager.hpp"
+#include "socket_stream_writer.hpp"
+
 #pragma once
 
 class Client
@@ -28,7 +31,11 @@ class Client
 
 			bool connected = true;
 			std::string rx_buffer;
+
+			ClientStorageManager::DownloadHandle cur_download_handle;
 		};
+
+		Client();
 
 		static void handle_cmd(ServerState& state, std::string cmd, int sock);
 		static void handle_server_msg(ServerState& state, int sock);

@@ -1,5 +1,14 @@
 #include "client.hpp"
 
+Client::Client()
+{
+	ClientStorageManager::StorageConfig config {
+		
+	};
+
+	ClientStorageManager storage_manager(config);
+}
+
 void Client::send_binary(std::filesystem::path filepath, int sock)
 {
 	std::ifstream inFile(filepath, std::ios::binary);
@@ -47,14 +56,16 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		filename = filepath.filename().string();
 		filesize = std::filesystem::file_size(filepath);
+		SocketStreamWriter writer;
 
 		data.append(keyword + " " + filename + " " + std::to_string(filesize) + "\n");
 		
 		std::cout << "Command sent: " << data << std::endl;
 
 		send_header(data, sock);
-		send_binary(filepath, sock);
+		storage_manager.stream_file(filepath.string(), writer);
 	}
+
 	// DOWNLOAD command format: DOWNLOAD <filename>
 	else if (cmd.rfind("DOWNLOAD", 0) == 0) {
 		std::string keyword;
@@ -117,7 +128,8 @@ void Client::parse_msg(ServerState& state, size_t pos)
 		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
 
 		std::cout << "Keyword: [" << cmd << "], filename: [" << state.ifilename << "], filesize: [" << state.in_bytes_remaining << "]\n";
-
+		
+		state.cur_download_handle = storage_manager.start_download(state.ifilename, state.in_bytes_remaining);
 		state.command = DOWNLOAD;
 	}
 	else {
@@ -129,34 +141,16 @@ void Client::parse_msg(ServerState& state, size_t pos)
 bool Client::download_file(ServerState& state)
 {
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
-	std::string ifilename = state.ifilename + ".tmp";
-	std::filesystem::path ifilepath = "/home/bryce/projects/offlinePiFS/client/local_storage_test/" + ifilename;
-
-	std::cout << "[INFO] Downloading " << ifilepath << std::endl;
-
-	if (!std::filesystem::exists(ifilepath)) {
-		std::ofstream tmp(ifilepath);
-	}
-
-	std::ofstream outFile(ifilepath, std::ios::binary | std::ios::app);
-	if (!outFile.is_open()) {
-		std::cerr << "Failed to open " << ifilepath.string() << " for download." << std::endl;
-	}
 
 	if (to_write > 0) {
-		outFile.write(state.rx_buffer.data(), to_write);
+		// TODO - might need to change the data type of write_chunk data arg to account for max possible size of rx_buffer
+		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer, to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
-		outFile.close();
 	}
 				
 	if (state.in_bytes_remaining == 0) {
-		std::filesystem::path permPath = "/home/bryce/projects/offlinePiFS/client/local_storage_test/" + state.ifilename;
-		std::filesystem::rename(ifilepath, permPath);
-		// TODO - handle rename error
-
-		std::cout << "[INFO] Download finished. Permanent path: " << permPath << std::endl;
-
+		storage_manager.commit_download(state.cur_download_handle);
 		state.command = DEFAULT;
 		state.connected = false;
 		return true;

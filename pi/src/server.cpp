@@ -2,7 +2,7 @@
 
 Server::Server()
 {
-	StorageConfig config {
+	ServerStorageManager::StorageConfig config {
 		.root = "/home/bryce/projects/offlinePiFS/pi/data/";
 		.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/";
 		.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/";
@@ -12,7 +12,7 @@ Server::Server()
 		.read_only = false;
 	};
 
-	StorageManager storage_manager(config);
+	ServerStorageManager storage_manager(config);
 }
 
 void Server::set_timeout(int clientfd)
