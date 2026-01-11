@@ -106,9 +106,7 @@ bool Server::upload_file(ClientState& state)
 
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
-	// if bytes_remaining > 0 write binary data from recv to file
 	if (to_write > 0) {
-		// TODO - might need to change data type of write_chunk data arg to account for max possible size of rx_buffer
 		storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
@@ -118,8 +116,6 @@ bool Server::upload_file(ClientState& state)
 			state.command = DEFAULT;
 			return true;
 		}
-
-		return false;
 	}
 
 	return false;

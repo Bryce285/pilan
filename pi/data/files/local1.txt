@@ -1,1 +1,1 @@
-UPLOAD local1.tx
+This is local 1
