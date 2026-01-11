@@ -35,14 +35,19 @@ class Client
 			ClientStorageManager::DownloadHandle cur_download_handle;
 		};
 
-		Client();
-
-		static void handle_cmd(ServerState& state, std::string cmd, int sock);
-		static void handle_server_msg(ServerState& state, int sock);
+		void handle_cmd(ServerState& state, std::string cmd, int sock);
+		void handle_server_msg(ServerState& state, int sock);
 
 	private:
-		static void send_binary(std::filesystem::path filepath, int sock);
-		static void send_header(std::string header, int sock);
-		static void parse_msg(ServerState& state, size_t pos);
-		static bool download_file(ServerState& state);
+		ClientStorageManager::StorageConfig config {
+			.downloads_dir = "/home/bryce/Downloads",
+			.tmp_dir = "/home/bryce/projects/offlinePiFS/client/local_storage_test/tmp"
+		};
+
+		ClientStorageManager storage_manager{config};
+
+		void send_binary(std::filesystem::path filepath, int sock);
+		void send_header(std::string header, int sock);
+		void parse_msg(ServerState& state, size_t pos);
+		bool download_file(ServerState& state);
 };

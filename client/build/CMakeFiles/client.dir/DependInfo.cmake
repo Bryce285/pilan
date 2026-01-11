@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/bryce/projects/offlinePiFS/client/src/client.cpp" "CMakeFiles/client.dir/src/client.cpp.o" "gcc" "CMakeFiles/client.dir/src/client.cpp.o.d"
+  "/home/bryce/projects/offlinePiFS/client/src/client_storage_manager.cpp" "CMakeFiles/client.dir/src/client_storage_manager.cpp.o" "gcc" "CMakeFiles/client.dir/src/client_storage_manager.cpp.o.d"
   "/home/bryce/projects/offlinePiFS/client/src/main.cpp" "CMakeFiles/client.dir/src/main.cpp.o" "gcc" "CMakeFiles/client.dir/src/main.cpp.o.d"
   "" "client" "gcc" "CMakeFiles/client.dir/link.d"
   )

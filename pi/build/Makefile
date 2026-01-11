@@ -177,6 +177,30 @@ src/server.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server.cpp.s
 .PHONY : src/server.cpp.s
 
+src/server_storage_manager.o: src/server_storage_manager.cpp.o
+.PHONY : src/server_storage_manager.o
+
+# target to build an object file
+src/server_storage_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server_storage_manager.cpp.o
+.PHONY : src/server_storage_manager.cpp.o
+
+src/server_storage_manager.i: src/server_storage_manager.cpp.i
+.PHONY : src/server_storage_manager.i
+
+# target to preprocess a source file
+src/server_storage_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server_storage_manager.cpp.i
+.PHONY : src/server_storage_manager.cpp.i
+
+src/server_storage_manager.s: src/server_storage_manager.cpp.s
+.PHONY : src/server_storage_manager.s
+
+# target to generate assembly for a file
+src/server_storage_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/src/server_storage_manager.cpp.s
+.PHONY : src/server_storage_manager.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -192,6 +216,9 @@ help:
 	@echo "... src/server.o"
 	@echo "... src/server.i"
 	@echo "... src/server.s"
+	@echo "... src/server_storage_manager.o"
+	@echo "... src/server_storage_manager.i"
+	@echo "... src/server_storage_manager.s"
 .PHONY : help
 
 

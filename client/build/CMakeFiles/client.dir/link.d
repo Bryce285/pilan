@@ -3,6 +3,7 @@ client: \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crti.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o \
   CMakeFiles/client.dir/src/client.cpp.o \
+  CMakeFiles/client.dir/src/client_storage_manager.cpp.o \
   CMakeFiles/client.dir/src/main.cpp.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/libm.so \
@@ -40,6 +41,8 @@ client: \
 /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o:
 
 CMakeFiles/client.dir/src/client.cpp.o:
+
+CMakeFiles/client.dir/src/client_storage_manager.cpp.o:
 
 CMakeFiles/client.dir/src/main.cpp.o:
 

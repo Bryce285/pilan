@@ -1,20 +1,5 @@
 #include "server.hpp"
 
-Server::Server()
-{
-	ServerStorageManager::StorageConfig config {
-		.root = "/home/bryce/projects/offlinePiFS/pi/data/";
-		.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/";
-		.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/";
-		.meta_dir = "/home/bryce/projects/offlinePiFS/pi/data/meta/";
-		.max_file_size = 1000000000; // 1GB
-		.max_total_size = 10000000000; // 10GB
-		.read_only = false;
-	};
-
-	ServerStorageManager storage_manager(config);
-}
-
 void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
@@ -124,12 +109,12 @@ bool Server::upload_file(ClientState& state)
 	// if bytes_remaining > 0 write binary data from recv to file
 	if (to_write > 0) {
 		// TODO - might need to change data type of write_chunk data arg to account for max possible size of rx_buffer
-		storage_manager.write_chunk(cur_upload_handle, state.rx_buffer, to_write);
+		storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
 
 		if (state.in_bytes_remaining == 0) {
-			storage_manager.commit_upload();						
+			storage_manager.commit_upload(cur_upload_handle);						
 			state.command = DEFAULT;
 			return true;
 		}
@@ -145,7 +130,7 @@ void Server::download_file(ClientState& state, int clientfd)
 	SocketStreamWriter writer(clientfd);
 
 	try {
-		storage_manager.stream_file(ofilename, writer);	
+		storage_manager.stream_file(state.ofilename, writer);	
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Failed to stream file: " << e.what() << std::endl;
@@ -158,7 +143,7 @@ void Server::list_files(ClientState& state, int clientfd)
 {
 	std::cout << "Entered list function" << std::endl;
 	
-	std::vector<StorageManager::FileInfo> files = storage_manager.list_files();
+	std::vector<ServerStorageManager::FileInfo> files = storage_manager.list_files();
 
 	std::string message;
 	for (int i = 0; i < files.size(); i++) {
@@ -190,7 +175,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 {
 	storage_manager.delete_file(state.file_to_delete);
 
-	std::string message = "File deleted\n"	
+	std::string message = "File deleted\n";	
 	const char* data_ptr = message.c_str();
 	size_t total = 0;
 	while (total < message.size()) {

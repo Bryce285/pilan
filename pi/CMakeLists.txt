@@ -8,10 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
 file(GLOB SOURCES "src/*.cpp")
 add_executable(server ${SOURCES})
+
+target_include_directories(server PRIVATE
+	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_SOURCE_DIR}/../shared/include
+)
 
 target_link_libraries(server
     PRIVATE

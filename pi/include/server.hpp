@@ -27,13 +27,24 @@
 class Server 
 {
 	public:
-		Server();
-		static void handle_client(int clientfd);
+		void handle_client(int clientfd);
 		
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
 		
+		ServerStorageManager::StorageConfig config {
+			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 
+			.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/", 
+			.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/", 
+			.meta_dir = "/home/bryce/projects/offlinePiFS/pi/data/meta/",
+			.max_file_size = 1000000000, // 1GB
+			.max_total_size = 10000000000, // 10GB
+			.read_only = false
+		};
+
+		ServerStorageManager storage_manager{config};
+
 		// TODO - move this inside the state struct
 		ServerStorageManager::UploadHandle cur_upload_handle;
 
@@ -63,16 +74,16 @@ class Server
 			int file_fd = -1;
 		};
 
-		static void set_timeout(int clientfd);
-		static std::string load_auth_key();
-		static bool authenticate(int clientfd);
+		void set_timeout(int clientfd);
+		std::string load_auth_key();
+		bool authenticate(int clientfd);
 		
-		static bool upload_file(ClientState& state);
-		static void download_file(ClientState& state, int clientfd);
-		static void list_files(ClientState& state, int clientfd);
-		static void delete_file(ClientState& state, int clientfd);
+		bool upload_file(ClientState& state);
+		void download_file(ClientState& state, int clientfd);
+		void list_files(ClientState& state, int clientfd);
+		void delete_file(ClientState& state, int clientfd);
 		
-		static std::string parse_msg(ClientState& state, size_t pos, int clientfd);
+		std::string parse_msg(ClientState& state, size_t pos, int clientfd);
 
-		static void client_loop(int clientfd);
+		void client_loop(int clientfd);
 };

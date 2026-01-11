@@ -1,3 +1,4 @@
 ### TODO
-* finish storage manager
-* integrate storage manager into existing server and client code
+* create .gitignore
+* test and fix storage manager code
+* implement security layer

@@ -6,12 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(nlohmann_json CONFIG REQUIRED)
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
 file(GLOB SOURCES "src/*cpp")
 add_executable(client ${SOURCES})
 
-target_link_libraries(server
+target_include_directories(client PRIVATE
+	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_SOURCE_DIR}/../shared/include	
+)
+
+target_link_libraries(client
 	PRIVATE
 		nlohmann_json::nlohmann_json
 )

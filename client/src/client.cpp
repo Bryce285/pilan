@@ -1,14 +1,5 @@
 #include "client.hpp"
 
-Client::Client()
-{
-	ClientStorageManager::StorageConfig config {
-		
-	};
-
-	ClientStorageManager storage_manager(config);
-}
-
 void Client::send_binary(std::filesystem::path filepath, int sock)
 {
 	std::ifstream inFile(filepath, std::ios::binary);
@@ -56,14 +47,16 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		filename = filepath.filename().string();
 		filesize = std::filesystem::file_size(filepath);
-		SocketStreamWriter writer;
+		SocketStreamWriter writer(sock);
 
 		data.append(keyword + " " + filename + " " + std::to_string(filesize) + "\n");
 		
 		std::cout << "Command sent: " << data << std::endl;
-
+		
 		send_header(data, sock);
-		storage_manager.stream_file(filepath.string(), writer);
+		
+		std::string filepath_str = filepath.string();
+		storage_manager.stream_file(filepath_str, writer);
 	}
 
 	// DOWNLOAD command format: DOWNLOAD <filename>
@@ -144,7 +137,7 @@ bool Client::download_file(ServerState& state)
 
 	if (to_write > 0) {
 		// TODO - might need to change the data type of write_chunk data arg to account for max possible size of rx_buffer
-		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer, to_write);
+		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer.c_str(), to_write);
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
 	}

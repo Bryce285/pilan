@@ -7,7 +7,7 @@ class SocketStreamWriter : public StreamWriter {
 		explicit SocketStreamWriter(int sock)
 			: fd(sock) {}
 		
-		void write(const uint8_t* data, size_t len) override {
+		void write(const char* data, size_t len) override {
 			size_t total = 0;
 			while (total < len) {
 				ssize_t sent = ::send(fd, data + total, len - total, 0);

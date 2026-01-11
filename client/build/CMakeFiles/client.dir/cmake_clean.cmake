@@ -2,6 +2,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/client.dir/link.d"
   "CMakeFiles/client.dir/src/client.cpp.o"
   "CMakeFiles/client.dir/src/client.cpp.o.d"
+  "CMakeFiles/client.dir/src/client_storage_manager.cpp.o"
+  "CMakeFiles/client.dir/src/client_storage_manager.cpp.o.d"
   "CMakeFiles/client.dir/src/main.cpp.o"
   "CMakeFiles/client.dir/src/main.cpp.o.d"
   "client"

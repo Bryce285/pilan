@@ -4,6 +4,7 @@ server: \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o \
   CMakeFiles/server.dir/src/main.cpp.o \
   CMakeFiles/server.dir/src/server.cpp.o \
+  CMakeFiles/server.dir/src/server_storage_manager.cpp.o \
   /usr/lib/x86_64-linux-gnu/libssl.so \
   /usr/lib/x86_64-linux-gnu/libcrypto.so \
   /usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so \
@@ -46,6 +47,8 @@ server: \
 CMakeFiles/server.dir/src/main.cpp.o:
 
 CMakeFiles/server.dir/src/server.cpp.o:
+
+CMakeFiles/server.dir/src/server_storage_manager.cpp.o:
 
 /usr/lib/x86_64-linux-gnu/libssl.so:
 

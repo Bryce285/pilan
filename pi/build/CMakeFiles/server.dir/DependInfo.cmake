@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/bryce/projects/offlinePiFS/pi/src/main.cpp" "CMakeFiles/server.dir/src/main.cpp.o" "gcc" "CMakeFiles/server.dir/src/main.cpp.o.d"
   "/home/bryce/projects/offlinePiFS/pi/src/server.cpp" "CMakeFiles/server.dir/src/server.cpp.o" "gcc" "CMakeFiles/server.dir/src/server.cpp.o.d"
+  "/home/bryce/projects/offlinePiFS/pi/src/server_storage_manager.cpp" "CMakeFiles/server.dir/src/server_storage_manager.cpp.o" "gcc" "CMakeFiles/server.dir/src/server_storage_manager.cpp.o.d"
   "" "server" "gcc" "CMakeFiles/server.dir/link.d"
   )
 

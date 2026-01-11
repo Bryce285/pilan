@@ -22,6 +22,8 @@
 
 #include "server.hpp"
 
+Server server;
+
 // for logging connections
 struct ClientConnection 
 {
@@ -94,7 +96,7 @@ int main()
 					<< " on port " << connection.port << " with file descriptor "
 					<< connection.fd << std::endl;
 		
-		std::thread t(Server::handle_client, clientfd);
+		std::thread t(&Server::handle_client, &server, clientfd);
 		t.detach();
 	}
 	

@@ -153,6 +153,30 @@ src/client.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client.cpp.s
 .PHONY : src/client.cpp.s
 
+src/client_storage_manager.o: src/client_storage_manager.cpp.o
+.PHONY : src/client_storage_manager.o
+
+# target to build an object file
+src/client_storage_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client_storage_manager.cpp.o
+.PHONY : src/client_storage_manager.cpp.o
+
+src/client_storage_manager.i: src/client_storage_manager.cpp.i
+.PHONY : src/client_storage_manager.i
+
+# target to preprocess a source file
+src/client_storage_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client_storage_manager.cpp.i
+.PHONY : src/client_storage_manager.cpp.i
+
+src/client_storage_manager.s: src/client_storage_manager.cpp.s
+.PHONY : src/client_storage_manager.s
+
+# target to generate assembly for a file
+src/client_storage_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/src/client_storage_manager.cpp.s
+.PHONY : src/client_storage_manager.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -189,6 +213,9 @@ help:
 	@echo "... src/client.o"
 	@echo "... src/client.i"
 	@echo "... src/client.s"
+	@echo "... src/client_storage_manager.o"
+	@echo "... src/client_storage_manager.i"
+	@echo "... src/client_storage_manager.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

@@ -30,7 +30,8 @@ int main() {
 	
 	// TODO - send this in a loop just to be safe
 	send(sock, auth_msg.c_str(), auth_msg.size(), 0);
-
+	
+	Client client;
 	std::string cmd;
 	Client::ServerState state;
 
@@ -40,10 +41,10 @@ int main() {
 		std::getline(std::cin, cmd);
 
 		// parse and send command to server
-		Client::handle_cmd(state, cmd, sock);
+		client.handle_cmd(state, cmd, sock);
 
 		// handle server response
-		Client::handle_server_msg(state, sock);
+		client.handle_server_msg(state, sock);
 	}
 
     close(sock);

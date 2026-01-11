@@ -2,9 +2,20 @@
 
 using json = nlohmann::json;
 
-ServerStorageManager::StorageManager(const StorageConfig& config) 
+ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config) 
 {
 	this->config = config;
+}
+
+std::string ServerStorageManager::to_hex_string(const unsigned char* data, size_t len) {
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+
+    for (size_t i = 0; i < len; ++i) {
+        oss << std::setw(2) << static_cast<int>(data[i]);
+    }
+
+    return oss.str();
 }
 
 uint64_t ServerStorageManager::unix_timestamp_ms()
@@ -22,9 +33,9 @@ std::string ServerStorageManager::sanitize_filename(std::string name)
 		std::replace(name.begin(), name.end(), c, '_');
 	}
 	
-	filename.erase(std::remove_if(filename.begin(), filename.end(), [](unsigned char x) {
+	name.erase(std::remove_if(name.begin(), name.end(), [](unsigned char x) {
         return std::iscntrl(x);
-    }), filename.end());
+    }), name.end());
 
 	while (name.find("..") != std::string::npos) {
         size_t pos = name.find("..");
@@ -34,7 +45,7 @@ std::string ServerStorageManager::sanitize_filename(std::string name)
 	return name;
 }
 
-UploadHandle ServerStorageManager::start_upload(const std::string& name, size_t size)
+ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std::string& name, size_t size)
 {
 	std::string name_sanitized = sanitize_filename(name);
 	UploadHandle handle;
@@ -51,17 +62,25 @@ UploadHandle ServerStorageManager::start_upload(const std::string& name, size_t 
 	handle.bytes_written = 0;
 	handle.active = true;
 
-	SHA256_Init(&handle.hash_ctx);	
+	handle.evp_ctx = EVP_MD_CTX_new();
+	if (!handle.evp_ctx) {
+		std::cerr << "Failed to create EVP context" << std::endl;
+	}
+	
+	if (EVP_DigestInit_ex(handle.evp_ctx, EVP_sha256(), nullptr) != 1) {
+		std::cerr << "Digest failed" << std::endl;
+		EVP_MD_CTX_free(handle.evp_ctx);
+	}
 
 	return handle;	
 }
 
-void ServerStorageManager::write_chunk(UploadHandle& handle, const uint8_t data, size_t len)
+void ServerStorageManager::write_chunk(UploadHandle& handle, const char* data, size_t len)
 {
 	if (!handle.active) throw std::logic_error("Upload not active");
 
 	write(handle.fd, data, len);
-	SHA256_Update(&handle.hash_ctx, data, len);
+	EVP_DigestUpdate(handle.evp_ctx, data, len);
 
 	handle.bytes_written += len;
 }
@@ -77,6 +96,12 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	fsync(handle.fd);
 	close(handle.fd);
 	
+	unsigned char hash[EVP_MAX_MD_SIZE];
+	unsigned int hash_len = 0;
+
+	EVP_DigestFinal_ex(handle.evp_ctx, hash, &hash_len);
+	EVP_MD_CTX_free(handle.evp_ctx);
+
 	// TODO - eventually use SQLite to store metadata
 	
 	std::ofstream outFile(handle.meta_path);
@@ -88,7 +113,7 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	json metadata;
 	metadata["name"] = handle.final_path.filename();
 	metadata["size_bytes"] = handle.expected_size;
-	metadata["sha256"] = handle.hash_ctx;
+	metadata["sha256_hex"] = to_hex_string(hash, hash_len);
 	metadata["created_at"] = std::to_string(unix_timestamp_ms());
 
 	outFile << metadata;
@@ -114,10 +139,10 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 	handle.active = false;
 }
 
-FileInfo ServerStorageManager::get_file_info(const std::string& name)
+ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
-	std::filesystem::path path = config.files_dir / sanitize_filename(name) + ".json";	
+	std::filesystem::path path = config.files_dir / (sanitize_filename(name) + ".json");	
 
 	// create a FileInfo object
 	FileInfo file_info;
@@ -128,14 +153,14 @@ FileInfo ServerStorageManager::get_file_info(const std::string& name)
 	
 	file_info.name = metadata["name"];
 	file_info.size_bytes = static_cast<uint64_t>(metadata["size_bytes"]);
-	file_info.sha256 = metadata["sha256"];
+	file_info.sha256_str_hex = metadata["sha256_hex"];
 	file_info.created_at = static_cast<uint64_t>(metadata["created_at"]);
 
 	inFile.close();
 	return file_info;
 }
 
-std::vector<FileInfo> ServerStorageManager::list_files()
+std::vector<ServerStorageManager::FileInfo> ServerStorageManager::list_files()
 {
 	std::vector<FileInfo> files;
 
@@ -143,7 +168,7 @@ std::vector<FileInfo> ServerStorageManager::list_files()
 	try {
 		for (const auto& file : std::filesystem::directory_iterator(config.files_dir)) {
 			if (std::filesystem::is_regular_file(file.status())) {
-				files.push_back(get_file_info(file.string()));
+				files.push_back(get_file_info(file.path().string()));
 			}
 		}
 	}
@@ -158,7 +183,7 @@ void ServerStorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
-	std::filesystem::path path_deleting = path + ".deleting";
+	std::filesystem::path path_deleting = path.parent_path() / (path.filename().string() + ".deleting");
 
 	// rename (name.deleting)
 	std::filesystem::rename(path, path_deleting);
@@ -173,15 +198,15 @@ void ServerStorageManager::delete_file(const std::string& name)
 	// delete the file
 	std::filesystem::remove(path_deleting);
 
-	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
 		fsync(dir_fd);
 		close(dir_fd);
 	}
 
 	// delete metadata
-	std::filesystem::path meta_path = config.meta_dir / name + ".json";
-	std::filesystem::path meta_path_deleting = meta_path + ".deleting";
+	std::filesystem::path meta_path = config.meta_dir / (name + ".json");
+	std::filesystem::path meta_path_deleting = meta_path.parent_path() / (meta_path.filename().string() + ".deleting");
 
 	std::filesystem::rename(meta_path, meta_path_deleting);
 
@@ -193,7 +218,7 @@ void ServerStorageManager::delete_file(const std::string& name)
 
 	std::filesystem::remove(meta_path_deleting);
 
-	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (meta_dir_fd >= 0) {
 		fsync(meta_dir_fd);
 		close(meta_dir_fd);
@@ -213,19 +238,21 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
-		throw FileNotFound();
+		throw std::runtime_error("File not found");
 	}
 
 	// read in chunks
 	constexpr size_t CHUNK = 4 * 1024;
-	uint8_t buffer[CHUNK];
+	
+	// TODO - should char or unsigned char be used to stream binary data
+	char buffer[CHUNK];
 
 	// streaming loop
 	size_t total = 0;
 	while (total < size) {
 		ssize_t n = read(fd, buffer, CHUNK);
 		if (n == 0) break;
-		if (n < 0) throw IOError();
+		if (n < 0) throw std::runtime_error("IO error");
 		
 		writer.write(buffer, n);
 		total += n;

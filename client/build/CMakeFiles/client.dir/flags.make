@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/bryce/projects/offlinePiFS/client/include
+CXX_INCLUDES = -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include
 
 CXX_FLAGS = -std=gnu++20
 
