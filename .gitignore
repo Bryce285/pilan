@@ -1,0 +1,24 @@
+# Ignore CMake build directories
+/build/
+/build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+
+# Ignore compiled binaries
+*.o
+*.a
+*.so
+*.out
+*.exe
+
+# Ignore IDE/project files
+.vscode/
+.idea/
+*.user
+*.swp
+
+# Ignore OS-specific junk
+.DS_Store
+Thumbs.db
