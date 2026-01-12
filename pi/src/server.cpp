@@ -124,6 +124,23 @@ bool Server::upload_file(ClientState& state)
 void Server::download_file(ClientState& state, int clientfd)
 {
 	SocketStreamWriter writer(clientfd);
+	
+	std::filesystem::path path = config.files_dir / state.ofilename;
+	uint64_t size = std::filesystem::file_size(path);
+
+	// send header
+	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
+	const char* data_ptr = header.c_str();
+	size_t total = 0;
+	while (total < header.size()) {
+		ssize_t sent = send(clientfd, data_ptr + total, header.size() - total, 0);
+		if (sent <= 0) {
+			std::cerr << "Message failed to send" << header << std::endl;
+			return;
+		}
+
+		total += sent;
+	}
 
 	try {
 		storage_manager.stream_file(state.ofilename, writer);	

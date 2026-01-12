@@ -158,13 +158,6 @@ ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::st
 	file_info.sha256_str_hex = meta.at("sha256_hex").get<std::string>();
 	file_info.created_at = std::stoull(meta.at("created_at").get<std::string>());
 
-	/*
-	file_info.name = metadata["name"].get<std::string>();
-	file_info.size_bytes = metadata["size_bytes"].get<uint64_t>();
-	file_info.sha256_str_hex = metadata["sha256_hex"].get<std::string>();
-	file_info.created_at = std::stoull(metadata["created_at"].get<std::string>());
-	*/
-
 	inFile.close();
 	return file_info;
 }
@@ -177,7 +170,7 @@ std::vector<ServerStorageManager::FileInfo> ServerStorageManager::list_files()
 	try {
 		for (const auto& file : std::filesystem::directory_iterator(config.files_dir)) {
 			if (std::filesystem::is_regular_file(file.status())) {
-				files.push_back(get_file_info(file.path().string()));
+				files.push_back(get_file_info(file.path().filename().string()));
 			}
 		}
 	}
@@ -241,11 +234,10 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	FileInfo file_info = get_file_info(name);
 	uint64_t size = file_info.size_bytes;
 	
-	// TODO - this send is causing issues
-	// probably need to send outside of this function
-	std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
+	// TODO - add to stream writer a function to send ascii data so that headers can be sent from here
+	//std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
 	
-	writer.write(header.c_str(), sizeof(header));
+	//writer.write(header.c_str(), sizeof(header));
 
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {

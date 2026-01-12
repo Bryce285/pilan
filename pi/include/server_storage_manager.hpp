@@ -43,7 +43,7 @@ class ServerStorageManager
 
 			bool active;
 		};
-		
+
 		struct FileInfo {
 			std::string name;
 			uint64_t size_bytes;
@@ -61,7 +61,7 @@ class ServerStorageManager
 		FileInfo get_file_info(const std::string& name);
 		std::vector<FileInfo> list_files();
 		void delete_file(const std::string& name);
-	
+		
 		void stream_file(std::string& name, StreamWriter& writer);
 
 	private:
