@@ -34,7 +34,7 @@ ClientStorageManager::DownloadHandle ClientStorageManager::start_download(const 
 	handle.final_path = config.downloads_dir / name_sanitized;
 
 	handle.fd = open(handle.tmp_path.c_str(),
-						O_CREAT, O_EXCL, O_WRONLY,
+						O_CREAT | O_EXCL | O_WRONLY,
 						0600);
 
 	handle.expected_size = size;

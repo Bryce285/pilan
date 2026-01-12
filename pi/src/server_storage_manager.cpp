@@ -142,7 +142,7 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::string& name)
 {
 	// find and validate file
-	std::filesystem::path path = config.files_dir / (sanitize_filename(name) + ".json");	
+	std::filesystem::path path = config.meta_dir / (sanitize_filename(name) + ".json");	
 
 	// create a FileInfo object
 	FileInfo file_info;
@@ -150,11 +150,20 @@ ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::st
 	// fill out FileInfo object with file metadata
 	std::ifstream inFile(path);
 	json metadata{json::parse(inFile)};
-	
-	file_info.name = metadata["name"];
-	file_info.size_bytes = static_cast<uint64_t>(metadata["size_bytes"]);
-	file_info.sha256_str_hex = metadata["sha256_hex"];
-	file_info.created_at = static_cast<uint64_t>(metadata["created_at"]);
+
+	const auto& meta = metadata.at(0);
+
+	file_info.name = meta.at("name").get<std::string>();
+	file_info.size_bytes = meta.at("size_bytes").get<uint64_t>();
+	file_info.sha256_str_hex = meta.at("sha256_hex").get<std::string>();
+	file_info.created_at = std::stoull(meta.at("created_at").get<std::string>());
+
+	/*
+	file_info.name = metadata["name"].get<std::string>();
+	file_info.size_bytes = metadata["size_bytes"].get<uint64_t>();
+	file_info.sha256_str_hex = metadata["sha256_hex"].get<std::string>();
+	file_info.created_at = std::stoull(metadata["created_at"].get<std::string>());
+	*/
 
 	inFile.close();
 	return file_info;
@@ -231,7 +240,9 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	FileInfo file_info = get_file_info(name);
 	uint64_t size = file_info.size_bytes;
-
+	
+	// TODO - this send is causing issues
+	// probably need to send outside of this function
 	std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
 	
 	writer.write(header.c_str(), sizeof(header));

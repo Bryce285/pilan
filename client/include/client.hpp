@@ -40,7 +40,7 @@ class Client
 
 	private:
 		ClientStorageManager::StorageConfig config {
-			.downloads_dir = "/home/bryce/Downloads",
+			.downloads_dir = "/home/bryce/projects/offlinePiFS/client/local_storage_test",
 			.tmp_dir = "/home/bryce/projects/offlinePiFS/client/local_storage_test/tmp"
 		};
 
