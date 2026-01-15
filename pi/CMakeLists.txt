@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(sodium REQUIRED)
 
 file(GLOB SOURCES "src/*.cpp")
 add_executable(server ${SOURCES})
@@ -21,4 +22,5 @@ target_link_libraries(server
         OpenSSL::SSL
         OpenSSL::Crypto
         nlohmann_json::nlohmann_json
+        sodium
 )

@@ -1,6 +1,6 @@
 #include <filesystem>
 #include <openssl/sha.h>
-#include <openssl/evp.h>
+#include <openssl/evp.h> // TODO - migrate from openssl to libsodium
 #include <fstream>
 #include <iostream>
 #include <algorithm>

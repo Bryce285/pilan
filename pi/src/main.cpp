@@ -4,7 +4,8 @@
 #include <unistd.h>       // close()
 #include <fcntl.h>
 
-#include <openssl/crypto.h>
+#include <openssl/crypto.h> // TODO - is openssl even used in this file?
+#include <sodium.h>
 
 #include <vector>
 #include <chrono>
@@ -35,6 +36,11 @@ struct ClientConnection
 
 int main()
 {
+    if (sodium_init() < 0) {
+        std::cerr << "Failed to initialize libsodium" << std::endl;
+        exit(1);
+    }
+
 	bool quit = false;
 
 	// create a socket
