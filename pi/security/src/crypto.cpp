@@ -135,6 +135,7 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf, const uint8_t* tak)
         );
 }
 
+// we recieve decrypted file data in chunks from the decrypt_chunk function, we then call this function on each decrypted chunk, and send the output to the client 
 void CryptoInTransit::encrypt_message(uint8_t* plaintext, CiphertextSink on_message_ready, uint8_t* session_key)
 {
     const size_t PLAINTEXT_LEN = std::size(plaintext);
@@ -147,7 +148,7 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, CiphertextSink on_mess
 
     crypto_aead_xchacha20poly1305_ietf_encrypt(
             ciphertext,
-            ciphertext_len,
+            &ciphertext_len,
             plaintext,
             PLAINTEXT_LEN,
             nullptr, 0,
@@ -155,7 +156,8 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, CiphertextSink on_mess
             nonce,
             session_key
         );
-
+	
+	// TODO - we also need to give the nonce to the caller so that it can be sent to the client
     on_message_ready(ciphertext, CIPHERTEXT_LEN);
 }
 
@@ -188,4 +190,5 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, PlaintextSink on_mess
     }
 
     plaintext.resize(plaintext_len);
+	on_message_ready(plaintext.data(), plaintext_len);
 }

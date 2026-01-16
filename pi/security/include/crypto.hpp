@@ -23,16 +23,15 @@ class CryptoAtRest
 class CryptoInTransit
 {
     public:
-        using CiphertextSink = std::function<void(const uint8_t* data, size_t len)>;
-        using PlaintextSink = std::function<void(const uint8_t* data, size_t len)>;
+        using DataSink = std::function<void(const uint8_t* data, size_t len)>;
         
         // for client authentication
         uint8_t* get_nonce();
         bool verify_auth(uint8_t* auth_tag);
         void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
 
-        void encrypt_message(uint8_t* plaintext, CiphertextSink on_message_ready, uint8_t* session_key);
-        void decrypt_message(uint8_t* ciphertext, PlaintextSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
+        void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
+        void decrypt_message(uint8_t* ciphertext, DataSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
 
     private:
         const size_t AUTH_NONCE_LEN = 32;
