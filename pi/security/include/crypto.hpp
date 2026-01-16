@@ -3,7 +3,7 @@
 
 #pragma once
 
-class Crypto
+class CryptoAtRest
 {
     public:
         using PlaintextSink = std::function<void(const uint8_t* data, size_t len)>;
@@ -18,4 +18,22 @@ class Crypto
 
         crypto_secretstream_xchacha20poly1305_state file_decrypt_init(int fd_in);
         void decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready);
+};
+
+class CryptoInTransit
+{
+    public:
+        using CiphertextSink = std::function<void(const uint8_t* data, size_t len)>;
+        using PlaintextSink = std::function<void(const uint8_t* data, size_t len)>;
+        
+        // for client authentication
+        uint8_t* get_nonce();
+        bool verify_auth(uint8_t* auth_tag);
+        void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
+
+        void encrypt_message(uint8_t* plaintext, CiphertextSink on_message_ready, uint8_t* session_key);
+        void decrypt_message(uint8_t* ciphertext, PlaintextSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
+
+    private:
+        const size_t AUTH_NONCE_LEN = 32;
 };
