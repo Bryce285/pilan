@@ -3,7 +3,7 @@
 #include <arpa/inet.h>    // inet_addr() if needed
 #include <unistd.h>       // close()
 
-#include <openssl/crypto.h>
+#include <sodium.h>
 
 #include <vector>
 #include <chrono>

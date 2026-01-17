@@ -1,6 +1,4 @@
 #include <filesystem>
-#include <openssl/sha.h>
-#include <openssl/evp.h> // TODO - migrate from openssl to libsodium
 #include <fstream>
 #include <iostream>
 #include <algorithm>
@@ -39,7 +37,7 @@ class ServerStorageManager
 			size_t expected_size;
 			size_t bytes_written;
 
-			EVP_MD_CTX* evp_ctx;
+			crypto_generichash_state hash_state;
 
 			bool active;
 		};
@@ -65,9 +63,9 @@ class ServerStorageManager
 		void stream_file(std::string& name, StreamWriter& writer);
 
 	private:
+        const size_t HASH_SIZE = crypto_generichash_BYTES;
 		StorageConfig config;
 		
-		std::string to_hex_string(const unsigned char* data, size_t len);
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);
 };

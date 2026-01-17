@@ -4,9 +4,6 @@
 #include <unistd.h>       // close()
 #include <fcntl.h>
 
-#include <openssl/crypto.h> // TODO - is openssl even used in this file?
-#include <sodium.h>
-
 #include <vector>
 #include <chrono>
 #include <string>

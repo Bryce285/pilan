@@ -7,17 +7,6 @@ ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageCo
 	this->config = config;
 }
 
-std::string ServerStorageManager::to_hex_string(const unsigned char* data, size_t len) {
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
-
-    for (size_t i = 0; i < len; ++i) {
-        oss << std::setw(2) << static_cast<int>(data[i]);
-    }
-
-    return oss.str();
-}
-
 uint64_t ServerStorageManager::unix_timestamp_ms()
 {
 	using namespace std::chrono;
@@ -62,15 +51,9 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
 	handle.bytes_written = 0;
 	handle.active = true;
 
-	handle.evp_ctx = EVP_MD_CTX_new();
-	if (!handle.evp_ctx) {
-		std::cerr << "Failed to create EVP context" << std::endl;
-	}
-	
-	if (EVP_DigestInit_ex(handle.evp_ctx, EVP_sha256(), nullptr) != 1) {
-		std::cerr << "Digest failed" << std::endl;
-		EVP_MD_CTX_free(handle.evp_ctx);
-	}
+    if (crypto_generichash_init(&handle.hash_state, nullptr, 0, HASH_SIZE) != 0) {
+        std::cerr << "hash init failed" << std::endl;
+    }
 
 	return handle;	
 }
@@ -80,7 +63,7 @@ void ServerStorageManager::write_chunk(UploadHandle& handle, const char* data, s
 	if (!handle.active) throw std::logic_error("Upload not active");
 
 	write(handle.fd, data, len);
-	EVP_DigestUpdate(handle.evp_ctx, data, len);
+    crypto_generichash_update(&handle.hash_state, data, len);
 
 	handle.bytes_written += len;
 }
@@ -96,11 +79,11 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	fsync(handle.fd);
 	close(handle.fd);
 	
-	unsigned char hash[EVP_MAX_MD_SIZE];
-	unsigned int hash_len = 0;
+	uint8_t hash[HASH_SIZE];
 
-	EVP_DigestFinal_ex(handle.evp_ctx, hash, &hash_len);
-	EVP_MD_CTX_free(handle.evp_ctx);
+    if (crypto_generichash_final(&handle.hash_state, hash, HASH_SIZE) != 0) {
+        std::cerr << "Could not finalize hash" << std::endl;
+    }
 
 	// TODO - eventually use SQLite to store metadata
 	
@@ -109,11 +92,13 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 		std::cerr << "Failed to open " << handle.meta_path.string() << std::endl;
 	}
 	
+    char hex[(HASH_SIZE * 2) + 1];
+
 	// write name, size, hash, and creation timestamp to metadata file
 	json metadata;
 	metadata["name"] = handle.final_path.filename();
 	metadata["size_bytes"] = handle.expected_size;
-	metadata["sha256_hex"] = to_hex_string(hash, hash_len);
+	metadata["sha256_hex"] = sodium_bin2hex(hex, sizeof(hex), hash, HASH_SIZE);
 	metadata["created_at"] = std::to_string(unix_timestamp_ms());
 
 	outFile << metadata;

@@ -67,7 +67,7 @@ bool Server::authenticate(int clientfd)
 	std::string device_key = load_auth_key();
 	size_t len = device_key.length();
 
-	if (CRYPTO_memcmp(client_key.data(), device_key.data(), len)) {
+	if (sodium_memcmp(client_key.data(), device_key.data(), len) != 0) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		
