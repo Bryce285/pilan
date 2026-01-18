@@ -2,13 +2,10 @@
 
 // TODO - make sure that full error handling and secure failure are implemented
 
-crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_encrypt_init(int fd_out)
+crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_encrypt_init(int fd_out, const uint8_t* fek)
 {
     crypto_secretstream_xchacha20poly1305_state state;
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-
-    // TODO - is it safe to store the key as a string here?
-    std::string fek; // TODO - get this from derive_key method in KeyManager
 
     crypto_secretstream_xchacha20poly1305_init_push(&state, header, fek);
 
@@ -52,12 +49,10 @@ void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly13
     write(fd_out, ciphertext, CIPHERTEXT_LEN);
 }
 
-crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int fd_in)
+crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int fd_in, const uint8_t* fek)
 {
     crypto_secretstream_xchacha20poly1305_state state;
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-
-    std::string fek; // TODO - get this from derive key method in key manager
 
     read(fd_in, header, sizeof(header));
 

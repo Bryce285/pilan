@@ -21,6 +21,8 @@
 
 #include "server_storage_manager.hpp"
 #include "socket_stream_writer.hpp"
+#include "key_manager.hpp"
+#include "crypto.hpp"
 
 #pragma once
 
@@ -32,6 +34,17 @@ class Server
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
+
+        KeyManager key_manager;
+        const uint8_t MDK[crypto_kdf_KEYBYTES] = key_manager.load_or_gen_mdk();
+
+        std::string fek_context = "file_encryption_v1";
+        uint64_t fek_subkey_id = 1;
+        const uint8_t FEK[crypto_kdf_KEYBYTES] = key_manager.derive_key(MDK, FEK, fek_context, fek_subkey_id);
+
+        std::string tak_context = "transfer_auth_v1";
+        uint64_t tak_subkey_id = 2;
+        const uint8_t TAK[crypto_kdf_KEYBYTES] = key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id);
 		
 		ServerStorageManager::StorageConfig config {
 			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 

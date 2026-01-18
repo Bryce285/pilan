@@ -18,7 +18,10 @@
 #include <csignal>
 #include <cstring>
 
+#include <sodium.h>
+
 #include "server.hpp"
+#include "key_manager.hpp"
 
 Server server;
 

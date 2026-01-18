@@ -1,5 +1,7 @@
 #include <sodium.h>
 #include <array>
+#include <fstream>
+#include <filesystem>
 
 #pragma once
 
@@ -11,9 +13,11 @@ class KeyManager
 		const std::string FEK_CONTEXT = "file_encryption_v1";
 		const std::string TAK_CONTEXT = "transport_auth_v1";
 
-		// TODO - the key is only generated once on first boot, after that we need to load it
-        uint8_t* gen_mdk();
+        uint8_t* load_or_gen_mdk();
 
 		void derive_key(const uint8_t* mdk, uint8_t* key_out, size_t key_len, std::string context);
+
+    private:
+        const std::filesystem::path MDK_PATH = "/home/bryce/projects/PiFileshare/PiFileshare/pi/mdk_tmp_path/mdk";
 };
 
