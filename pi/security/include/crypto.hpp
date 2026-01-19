@@ -27,12 +27,11 @@ class CryptoInTransit
 
         // for client authentication
         uint8_t* get_nonce();
-        bool verify_auth(uint8_t* auth_tag);
+        bool verify_auth(uint8_t* auth_tag, const uint8_t* nonce, const uint8_t* tak);
         void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
 
         void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
         void decrypt_message(uint8_t* ciphertext, DataSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
 
-    private:
         const size_t AUTH_NONCE_LEN = 32;
 };

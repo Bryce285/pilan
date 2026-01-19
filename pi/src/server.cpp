@@ -9,23 +9,27 @@ void Server::set_timeout(int clientfd)
 	setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 }
 
-std::string Server::load_auth_key()
-{
-	// TODO - real implementation of this function
-
-	/* PLACEHOLDER */
-	std::string key = "jarlsberg";
-	return key;
-}
-
 bool Server::authenticate(int clientfd)
 {
-	std::string rx_buffer;
-	bool recieving = true;
-	char buf[256];
+    // client uses nonce to generate authentication tag
+    uint8_t nonce[crypto_transit.AUTH_NONCE_LEN] = crypto_transit.get_nonce();
+	
+    size_t total = 0;
+	while (total < AUTH_NONCE_LEN) {
+		ssize_t sent = send(clientfd, nonce + total, AUTH_NONCE_LEN - total, 0);
+		if (sent <= 0) {
+			std::cerr << "Message failed to send: " << message << std::endl;
+            return false;
+		}
 
-	size_t total = 0;
-	while (recieving) {
+		total += sent;
+	}
+
+	std::vector<uint8_t> rx_buffer;
+	uint8_t buf[16384];
+
+	total = 0;
+	while (total < crypto_auth_hmacsha256_BYTES) {
 		ssize_t n = recv(clientfd, buf, sizeof(buf), 0);
 		if (n <= 0) {
 			std::cerr << "Failed to recieve AUTH message" << std::endl;
@@ -33,16 +37,12 @@ bool Server::authenticate(int clientfd)
 		}
 		
 		total += n;
-		rx_buffer.append(buf, n);
-
-		if (rx_buffer.find("\n") != std::string::npos) {
-			recieving = false;
-		}
+		rx_buffer.insert(rx_buffer.end(), std::begin(buf), std::end(buf));
 	}
-
+    
 	if (total <= 0) return false;
 
-	if (rx_buffer.rfind("AUTH", 0) != 0) {
+	if (rx_buffer.size() < 4 || std::memcmp(rx_buffer.data(), "AUTH", 4) != 0) {
 		std::string message = "400 EXPECTED AUTH\n";
 		const char* data_ptr = message.c_str();
 
@@ -58,16 +58,16 @@ bool Server::authenticate(int clientfd)
 
 		return false;
 	}
+    
+    const size_t OFFSET = 5; // index past the protocol command
+    std::vector<uint8_t> rx_auth_tag;
+    std::copy_n(rx_buffer.begin() + OFFSET, rx_buffer.size(), rx_auth_tag); 
 
-	std::string client_key = rx_buffer.substr(5);
-	if (!client_key.empty() && client_key.back() == '\n') {
-		client_key.pop_back();
+	if (!rx_auth_tag.empty() && rx_auth_tag.back() == '\n') {
+		rx_auth_tag.pop_back();
 	}
-
-	std::string device_key = load_auth_key();
-	size_t len = device_key.length();
-
-	if (sodium_memcmp(client_key.data(), device_key.data(), len) != 0) {
+    
+    if (!crypto_transit.verify_auth(rx_auth_tag, nonce, TAK)) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		

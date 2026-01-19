@@ -45,6 +45,9 @@ class Server
         std::string tak_context = "transfer_auth_v1";
         uint64_t tak_subkey_id = 2;
         const uint8_t TAK[crypto_kdf_KEYBYTES] = key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id);
+
+        CryptoAtRest crypto_rest;
+        CryptoInTransit crypto_transit;
 		
 		ServerStorageManager::StorageConfig config {
 			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 
@@ -88,7 +91,6 @@ class Server
 		};
 
 		void set_timeout(int clientfd);
-		std::string load_auth_key();
 		bool authenticate(int clientfd);
 		
 		bool upload_file(ClientState& state);
