@@ -55,15 +55,20 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
         std::cerr << "hash init failed" << std::endl;
     }
 
+    // TODO - need a CryptoAtRest object here
+    handle.encrypt_state = file_encrypt_init(handle.fd, FEK);
+
 	return handle;	
 }
 
-void ServerStorageManager::write_chunk(UploadHandle& handle, const char* data, size_t len)
+void ServerStorageManager::write_chunk(UploadHandle& handle, const uint8_t* data, size_t len, bool final_chunk)
 {
 	if (!handle.active) throw std::logic_error("Upload not active");
 
-	write(handle.fd, data, len);
     crypto_generichash_update(&handle.hash_state, data, len);
+
+    // TODO - we need to somehow get access to crypto.hpp here to use this function
+    encrypt_chunk(handle.fd, handle.encrypt_state, data, final_chunk);
 
 	handle.bytes_written += len;
 }
@@ -223,28 +228,16 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	//std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
 	
 	//writer.write(header.c_str(), sizeof(header));
-
+    
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
 		throw std::runtime_error("File not found");
 	}
+    
+    crypto_secretstream_xchacha20poly1305_state decrypt_state = file_decrypt_init(fd, FEK);
 
-	// read in chunks
-	constexpr size_t CHUNK = 4 * 1024;
-	
-	// TODO - should char or unsigned char be used to stream binary data
-	char buffer[CHUNK];
-
-	// streaming loop
-	size_t total = 0;
-	while (total < size) {
-		ssize_t n = read(fd, buffer, CHUNK);
-		if (n == 0) break;
-		if (n < 0) throw std::runtime_error("IO error");
-		
-		writer.write(buffer, n);
-		total += n;
-	}
+    // TODO - need a CryptoAtRest object to call this function
+    decrypt_chunk(fd, decrypt_state, writer.write);
 
 	// close file
 	writer.flush();

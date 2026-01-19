@@ -107,7 +107,14 @@ bool Server::upload_file(ClientState& state)
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
 	if (to_write > 0) {
-		storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write);
+
+        if (state.in_bytes_remaining - to_write == 0) {
+		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write, true);
+        }
+        else {
+		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write, false);
+        }
+
 		state.in_bytes_remaining -= to_write;
 		state.rx_buffer.erase(0, to_write);
 
@@ -233,7 +240,7 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 	else if (line.rfind("UPLOAD", 0) == 0) {
 					
 		/*
-		* UPLOAD <filename> <filesize (bytes)> \n <binary data>
+		* UPLOAD <filename> <filesize_bytes>\n <binary data>
 		* upload a file to the Pi
 		*/
 		std::cout << "[INFO] Command recieved: UPLOAD" << std::endl;
@@ -244,6 +251,7 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
 		
 		cur_upload_handle = storage_manager.start_upload(state.ifilename, state.in_bytes_remaining);
+
 		state.command = UPLOAD;
 		response = "UPLOADING\n";
 	}

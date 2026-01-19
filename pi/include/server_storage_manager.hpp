@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 #include <chrono>
+#include <sodium.h>
 
 #include "stream_writer.hpp"
 
@@ -29,7 +30,7 @@ class ServerStorageManager
 		
 		struct UploadHandle {
 			int fd;
-
+            
 			std::filesystem::path tmp_path;
 			std::filesystem::path final_path;
 			std::filesystem::path meta_path;
@@ -38,6 +39,7 @@ class ServerStorageManager
 			size_t bytes_written;
 
 			crypto_generichash_state hash_state;
+            crypto_secretstream_xchacha20poly1305_state encrypt_state;
 
 			bool active;
 		};

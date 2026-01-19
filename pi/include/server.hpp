@@ -86,7 +86,7 @@ class Server
 			std::string file_to_delete;
 
 			bool connected = true;
-			std::string rx_buffer;
+			std::string rx_buffer; // TODO - rx_buffer should be std::vector<uint8_t>
 			int file_fd = -1;
 		};
 

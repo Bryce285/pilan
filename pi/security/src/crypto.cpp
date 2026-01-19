@@ -63,7 +63,7 @@ crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int 
     return state;
 }
 
-void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& statePlaintextSink on_chunk_ready)
+void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready)
 {
     // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
     uint8_t plaintext[CHUNK_SIZE];
@@ -73,7 +73,8 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
     const size_t CIPHERTEXT_LEN = CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
     uint8_t ciphertext[CIPHERTEXT_LEN];
     uint8_t tag;
-
+    
+    ssize_t n;
     while ((n = read(fd_in, ciphertext, CIPHERTEXT_LEN)) > 0) {
         if (crypto_secretstream_xchacha20poly1305_pull(
                     &state,
