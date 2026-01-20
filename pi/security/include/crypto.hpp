@@ -33,5 +33,6 @@ class CryptoInTransit
         void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
         void decrypt_message(uint8_t* ciphertext, DataSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
 
-        const size_t AUTH_NONCE_LEN = 32;
+        // this function is for ascii strings, not binary data
+        bool encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key);
 };

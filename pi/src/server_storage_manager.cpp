@@ -217,6 +217,12 @@ void ServerStorageManager::delete_file(const std::string& name)
 	}
 }
 
+void ServerStorageManager::data_to_send(const uint8_t* data, size_t len)
+{
+    // TODO - need a CryptoInTransit object to call this
+    encrypt_message(data, writer.write, SESSION_KEY);
+}
+
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
 	// validate and open file
@@ -237,7 +243,7 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
     crypto_secretstream_xchacha20poly1305_state decrypt_state = file_decrypt_init(fd, FEK);
 
     // TODO - need a CryptoAtRest object to call this function
-    decrypt_chunk(fd, decrypt_state, writer.write);
+    decrypt_chunk(fd, decrypt_state, data_to_send);
 
 	// close file
 	writer.flush();

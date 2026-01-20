@@ -70,4 +70,6 @@ class ServerStorageManager
 		
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);
+
+        void data_to_send(const uint8_t* data, size_t len);
 };

@@ -34,6 +34,8 @@ class Server
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
+        
+        SocketStreamWriter writer(clientfd);
 
         KeyManager key_manager;
         const uint8_t MDK[crypto_kdf_KEYBYTES] = key_manager.load_or_gen_mdk();
@@ -48,6 +50,8 @@ class Server
 
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
+
+        const uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
 		
 		ServerStorageManager::StorageConfig config {
 			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 
@@ -86,13 +90,16 @@ class Server
 			std::string file_to_delete;
 
 			bool connected = true;
-			std::string rx_buffer; // TODO - rx_buffer should be std::vector<uint8_t>
+            std::vector<uint8_t> rx_buffer;
 			int file_fd = -1;
 		};
 
 		void set_timeout(int clientfd);
 		bool authenticate(int clientfd);
-		
+        
+        bool recv_all(int sock, uint8_t* buf, size_t len);
+        bool recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);
+
 		bool upload_file(ClientState& state);
 		void download_file(ClientState& state, int clientfd);
 		void list_files(ClientState& state, int clientfd);

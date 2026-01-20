@@ -100,8 +100,8 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
 
 uint8_t* CryptoInTransit::get_nonce()
 {
-    uint8_t nonce[AUTH_NONCE_LEN];
-    randombytes_buf(nonce, AUTH_NONCE_LEN);
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+    randombytes_buf(nonce, sizeof(nonce));
 
     return nonce;
 }
@@ -132,14 +132,14 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf, const uint8_t* tak)
 }
 
 // we recieve decrypted file data in chunks from the decrypt_chunk function, we then call this function on each decrypted chunk, and send the output to the client 
-void CryptoInTransit::encrypt_message(uint8_t* plaintext, CiphertextSink on_message_ready, uint8_t* session_key)
+void CryptoInTransit::encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key)
 {
     const size_t PLAINTEXT_LEN = std::size(plaintext);
 
     uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
     randombytes_buf(nonce, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 
-    size_t ciphertext_len;
+    uint32_t ciphertext_len;
     uint8_t ciphertext[PLAINTEXT_LEN + crypto_aead_xchacha20poly1305_ietf_ABYTES];
 
     crypto_aead_xchacha20poly1305_ietf_encrypt(
@@ -152,19 +152,27 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, CiphertextSink on_mess
             nonce,
             session_key
         );
-	
-	// TODO - we also need to give the nonce to the caller so that it can be sent to the client
+    
+    /*
+     *  CHUNK MESSAGE PROTOCOL:
+     *  [ciphertext length (network byte order]
+     *  [nonce (24 bytes)]
+     *  [ciphertext + auth tag]
+     */
+    on_message_ready(htonl(ciphertext_len), sizeof(uint32_t));
+    on_message_ready(nonce, sizeof(nonce));
     on_message_ready(ciphertext, CIPHERTEXT_LEN);
 }
 
-void CryptoInTransit::decrypt_message(uint8_t* ciphertext, PlaintextSink on_message_ready, uint8_t* session_key, uint8_t* nonce)
+void CryptoInTransit::decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce)
 {
     const size_t CIPHERTEXT_LEN = std::size(ciphertext);
     if (CIPHERTEXT_LEN < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
         std::cerr << "Ciphertext length is less than authentication tag size" << std::endl;
         return;
     }
-
+    
+    // TODO - can just edit the caller provided plaintext buffer in-place
     std::vector<uint8_t> plaintext(CIPHERTEXT_LEN);
     size_t plaintext_len;
 
@@ -186,5 +194,11 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, PlaintextSink on_mess
     }
 
     plaintext.resize(plaintext_len);
-	on_message_ready(plaintext.data(), plaintext_len);
+    plaintext_out = plaintext;
+}
+
+bool CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready uint8_t* session_key)
+{
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(message.data());
+    encrypt_message(data, on_message_ready, session_key);
 }

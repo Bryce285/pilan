@@ -12,11 +12,11 @@ void Server::set_timeout(int clientfd)
 bool Server::authenticate(int clientfd)
 {
     // client uses nonce to generate authentication tag
-    uint8_t nonce[crypto_transit.AUTH_NONCE_LEN] = crypto_transit.get_nonce();
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES] = crypto_transit.get_nonce();
 	
     size_t total = 0;
-	while (total < AUTH_NONCE_LEN) {
-		ssize_t sent = send(clientfd, nonce + total, AUTH_NONCE_LEN - total, 0);
+	while (total < sizeof(nonce)) {
+		ssize_t sent = send(clientfd, nonce + total, sizeof(nonce) - total, 0);
 		if (sent <= 0) {
 			std::cerr << "Message failed to send: " << message << std::endl;
             return false;
@@ -84,19 +84,11 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
+    crypto_transit.derive_session_key(SESSION_KEY, TAK);
+    
 	std::string message = "200 AUTH OK\n";
-	const char* data_ptr = message.c_str();
-	
-	total = 0;
-	while (total < message.size()) {
-		ssize_t sent = send(clientfd, data_ptr + total, message.size() - total, 0);
-		if (sent <= 0) {
-			std::cerr << "Message failed to send: " << message << std::endl;
-		}
+    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
-		total += sent;
-	}
-	
 	return true;
 }
 
@@ -130,24 +122,12 @@ bool Server::upload_file(ClientState& state)
 
 void Server::download_file(ClientState& state, int clientfd)
 {
-	SocketStreamWriter writer(clientfd);
-	
 	std::filesystem::path path = config.files_dir / state.ofilename;
 	uint64_t size = std::filesystem::file_size(path);
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
-	const char* data_ptr = header.c_str();
-	size_t total = 0;
-	while (total < header.size()) {
-		ssize_t sent = send(clientfd, data_ptr + total, header.size() - total, 0);
-		if (sent <= 0) {
-			std::cerr << "Message failed to send" << header << std::endl;
-			return;
-		}
-
-		total += sent;
-	}
+    crypto_transit.encrypted_string_send(header, writer.write, SESSION_KEY);
 
 	try {
 		storage_manager.stream_file(state.ofilename, writer);	
@@ -171,19 +151,8 @@ void Server::list_files(ClientState& state, int clientfd)
 	}
 	
 	std::cout << "Attempting to send files list" << std::endl;
-
-	const char* data_ptr = message.c_str();
-	size_t total = 0;
-	while (total < message.size()) {
-		ssize_t sent = send(clientfd, data_ptr + total, message.size() - total, 0);
-		if (sent <= 0) {
-			std::cerr << "Message failed to send: " << message << std::endl; 
-			state.connected = false;
-			return;
-		}
-
-		total += sent;
-	}
+    
+    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
 	std::cout << "Files list sent" << std::endl;
 	std::cout << message << std::endl;
@@ -196,19 +165,8 @@ void Server::delete_file(ClientState& state, int clientfd)
 	storage_manager.delete_file(state.file_to_delete);
 
 	std::string message = "File deleted\n";	
-	const char* data_ptr = message.c_str();
-	size_t total = 0;
-	while (total < message.size()) {
-		ssize_t sent = send(clientfd, data_ptr + total, message.size() - total, 0);
-		if (sent <= 0) {
-			std::cerr << "Message failed to send: " << message << std::endl;
-			state.connected = false;
-			return;
-		}
+    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
-		total += sent;
-	}
-	
 	state.command = DEFAULT;
 }
 
@@ -232,8 +190,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
  		*/
 		std::cout << "[INFO] Command recieved: LIST" << std::endl;
 		
-		//list_files(state, clientfd);
-
 		state.command = LIST;
 		response = "LISTING\n";
 	}
@@ -299,10 +255,52 @@ std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 	return response;	
 }
 
+bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t recvd = recv(sock, buf + total, len - total, 0);
+        if (recvd <= 0) {
+            return false;
+        }
+        total += recvd;
+    }
+
+    return true;
+}
+
+bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
+{
+    uint32_t len_net;
+    if (!recv_all(sock, reinterpret_cast<uint8_t*>(&len_net), sizeof(len_net))) {
+        return false;
+    }
+
+    uint32_t ciphertext_len = ntohl(len_net);
+
+    if (cipher_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
+        return false;
+    }
+
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+    if (!recv_all(sock, nonce, sizeof(nonce))) {
+        return false;
+    }
+
+    std::vector<uint8_t> ciphertext(ciphertext_len);
+    if (!recv_all(sock, ciphertext.data(), ciphertext_len)) {
+        return false;
+    }
+
+    plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
+
+    crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
+}
+
 void Server::client_loop(int clientfd)
 {
 	ClientState state;
-	char buf[4096];
+	uint8_t buf[16384];
 	ssize_t n = 0;
 	
 	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
@@ -310,7 +308,7 @@ void Server::client_loop(int clientfd)
 	while (state.connected) {
 			
 		// recieve data from the client
-		n = recv(clientfd, buf, sizeof(buf), 0);
+		/*n = recv(clientfd, buf, sizeof(buf), 0);
 
 		if (n == 0) {
 			state.connected = false;
@@ -327,12 +325,23 @@ void Server::client_loop(int clientfd)
 			continue;
 		}
 
-		if (n > 0) state.rx_buffer.append(buf, n);
+		if (n > 0) state.rx_buffer.append(buf, n);*/
+        
+        std::vector<uint8_t> plaintext_buf;
+        recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
+        state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (state.command == DEFAULT) {
 			std::cout << "assembling protocol message" << std::endl;
 		
+            // TODO - possible bug: if we are in default mode and receive a chunk that
+            // contains a partial protocol header (not \n terminated), i think we will
+            // exit out of the client loop instead of looping back to receive another
+            // chunk
+
 			// assemble protocol messages
+            //
+            // TODO - need to update this stuff to work with std::vector instead of string
 			size_t pos;
 			while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
 
