@@ -197,7 +197,7 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>&
     plaintext_out = plaintext;
 }
 
-bool CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready uint8_t* session_key)
+void CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key)
 {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(message.data());
     encrypt_message(data, on_message_ready, session_key);

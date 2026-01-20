@@ -11,5 +11,7 @@ class CryptoInTransit
 		void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
 		
 		void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
-		void decrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
+		void decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce);
+		
+		void encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key);
 };

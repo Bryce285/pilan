@@ -41,11 +41,12 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, DataSink on_message_re
 			session_key
 		);
 	
-	// TODO - sending the data to this function might not be necessary since we call encrypt message once for every chunk of TCP data we send
+	on_message_ready(htonl(ciphertext_len), sizeof(uint32_t));
+	on_message_ready(nonce, sizeof(nonce));
 	on_message_ready(ciphertext, CIPHERTEXT_LEN);
 }
 
-void CryptoInTransit::decrypt_message(uint8_t* ciphertext, DataSink on_message_ready, uint8_t* session_key)
+void CryptoInTransit::decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce)
 {
 	const size_t CIPHERTEXT_LEN = std::size(ciphertext);
 	if (CIPHERTEXT_LEN < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
@@ -53,6 +54,7 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, DataSink on_message_r
 		return;
 	}
 
+	// TODO - can just edit the caller provided plaintext buffer in-place
 	std::vector<uint8_t> plaintext(CIPHERTEXT_LEN);
 	size_t plaintext_len;
 
@@ -74,5 +76,11 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, DataSink on_message_r
 	}
 
 	plaintext.resize(plaintext_len);
-	on_message_ready(plaintext.data(), plaintext_len);
+	plaintext_out = plaintext;
+}
+
+void CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key)
+{
+	const uint8_t* data = reinterpret_cast<const uint8_t*>(message.data());
+	encrypt_message(data, on_message_ready, session_key);
 }
