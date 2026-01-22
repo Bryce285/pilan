@@ -107,7 +107,7 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 
 	// read in chunks
 	constexpr size_t CHUNK = 4 * 1024;
-	char buffer[CHUNK];
+	uint8_t buffer[CHUNK];
 
 	// streaming loop
 	size_t total = 0;
@@ -116,7 +116,8 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 		if (n == 0) break;
 		if (n < 0) throw std::runtime_error("IO error");
 
-		writer.write(buffer, n);
+        // TODO - get session key from somewhere
+		crypto_transit.encrypt_message(buffer, writer.write, SESSION_KEY);
 		total += n;
 	}
 

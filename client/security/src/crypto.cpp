@@ -2,15 +2,26 @@
 
 // TODO - ERROR HANDLING
 
-void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce, uint8_t* tak)
+uint8_t* CryptoInTransit::load_tak()
+{
+    // TODO - implement this function
+    std::filesystem::path tak_path = "/path/to/tak";
+    uint8_t* tak;
+
+    return tak;
+}
+
+void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
 {
     // out_buf should be sized with the constant crypto_auth_hmacsha256_BYTES
-
+    uint8_t* tak = load_tak();
     crypto_auth_hmacsha256(out_buf, server_nonce, sizeof(server_nonce), tak);
 }
 
-void CryptoInTransit::derive_session_key(uint8_t* key_buf, const uint8_t* tak)
+void CryptoInTransit::derive_session_key(uint8_t* key_buf)
 {
+    uint8_t* tak = load_tak();
+
 	crypto_kdf_derive_from_key(
 			key_buf,
 			sizeof(key_buf),

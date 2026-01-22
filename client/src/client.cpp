@@ -34,6 +34,7 @@ void Client::send_header(std::string header, int sock)
 
 void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	std::string data;
+	SocketStreamWriter writer(sock);
 
 	// UPLOAD command format: UPLOAD <filepath>
 	if (cmd.rfind("UPLOAD", 0) == 0) {
@@ -47,13 +48,13 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		filename = filepath.filename().string();
 		filesize = std::filesystem::file_size(filepath);
-		SocketStreamWriter writer(sock);
 
 		data.append(keyword + " " + filename + " " + std::to_string(filesize) + "\n");
 		
 		std::cout << "Command sent: " << data << std::endl;
-		
-		send_header(data, sock);
+	    
+        // TODO - get SESSION_KEY from somewhere
+        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 		
 		std::string filepath_str = filepath.string();
 		storage_manager.stream_file(filepath_str, writer);
@@ -69,13 +70,13 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		data.append(keyword + " " + filename + "\n");
 
-		send_header(data, sock);
+        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 	}
 	// LIST command format: LIST
 	else if (cmd == "LIST") {
 		data = "LIST\n";
 
-		send_header(data, sock);
+        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 	}
 	// DELETE command format: DELETE <filename>
 	else if (cmd.rfind("DELETE", 0) == 0) {
@@ -88,14 +89,14 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		data.append(keyword + " " + filename + "\n");
 		
 		std::cout << "Keyword: [" << keyword << "], filename: [" << filename << "]\n";
-
-		send_header(data, sock);
+	
+        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 	}
 	else if (cmd == "QUIT") {
 		state.connected = false;
 		data = "QUIT\n";
 
-		send_header(data, sock);
+        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 	}
 	else {
 		throw std::runtime_error("Unrecognized command");
@@ -104,6 +105,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 void Client::parse_msg(ServerState& state, size_t pos)
 {
+
+    // TODO - rewrite this method to work with std::vector instead of string
 	std::string line = state.rx_buffer.substr(0, pos);
 	state.rx_buffer.erase(0, pos + 1);
 
@@ -152,12 +155,55 @@ bool Client::download_file(ServerState& state)
 	return false;
 }
 
+bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t recvd = recv(sock, buf + total, len - total, 0);
+        if (recvd <= 0) {
+            return false;
+        }
+        total += recvd;
+    }
+
+    return true;
+}
+
+bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
+{
+    uint32_t len_net;
+    if (!recv_all(sock, reinterpret_cast<uint8_t*>(&len_net), sizeof(len_net))) {
+        return false;
+    }
+
+    uint32_t ciphertext_len = ntohl(len_net);
+
+    if (cipher_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
+        return false;
+    }
+
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+    if (!recv_all(sock, nonce, sizeof(nonce))) {
+        return false;
+    }
+
+    std::vector<uint8_t> ciphertext(ciphertext_len);
+    if (!recv_all(sock, ciphertext.data(), ciphertext_len)) {
+        return false;
+    }
+
+    plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
+
+    crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
+}
+
 void Client::handle_server_msg(ServerState& state, int sock)
 {
 	char buf[4096];
 
 	while (state.connected) {
-
+        
+        /*
 		ssize_t n = recv(sock, buf, sizeof(buf), 0);
 
 		if (n == 0) {
@@ -176,6 +222,11 @@ void Client::handle_server_msg(ServerState& state, int sock)
 		}
 
 		if (n > 0) state.rx_buffer.append(buf, n);
+        */
+
+        std::vector<uint8_t> plaintext_buf;
+        recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
+        state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		// assemble protocol messages from server
 		if (state.command == DEFAULT) {

@@ -27,7 +27,8 @@ bool Server::authenticate(int clientfd)
 
 	std::vector<uint8_t> rx_buffer;
 	uint8_t buf[16384];
-
+    
+    // receive auth tag from client
 	total = 0;
 	while (total < crypto_auth_hmacsha256_BYTES) {
 		ssize_t n = recv(clientfd, buf, sizeof(buf), 0);
