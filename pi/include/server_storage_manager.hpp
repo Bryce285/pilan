@@ -51,7 +51,11 @@ class ServerStorageManager
 			uint64_t created_at;
 		};
 
-		explicit ServerStorageManager(const StorageConfig& config);	
+        CryptoAtRest crypto_rest;
+        CryptoInTransit crypto_transit;
+        
+        // TODO - enforce size of FEK and SESSION_KEY from here
+		explicit ServerStorageManager(const StorageConfig& config, const uint8_t* FEK, const uint8_t* SESSION_KEY);	
 		
 		UploadHandle start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, const char* data, size_t len);
@@ -67,6 +71,9 @@ class ServerStorageManager
 	private:
         const size_t HASH_SIZE = crypto_generichash_BYTES;
 		StorageConfig config;
+
+        uint8_t FEK[crypto_kdf_KEYBYTES];
+        uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
 		
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);

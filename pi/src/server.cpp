@@ -12,7 +12,7 @@ void Server::set_timeout(int clientfd)
 bool Server::authenticate(int clientfd)
 {
     // client uses nonce to generate authentication tag
-    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES] = crypto_transit.get_nonce();
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES] = storage_manager.crypto_transit.get_nonce();
 	
     size_t total = 0;
 	while (total < sizeof(nonce)) {
@@ -85,10 +85,10 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
-    crypto_transit.derive_session_key(SESSION_KEY, TAK);
+    storage_manager.crypto_transit.derive_session_key(SESSION_KEY, TAK);
     
 	std::string message = "200 AUTH OK\n";
-    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
 	return true;
 }
@@ -128,7 +128,7 @@ void Server::download_file(ClientState& state, int clientfd)
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
-    crypto_transit.encrypted_string_send(header, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(header, writer.write, SESSION_KEY);
 
 	try {
 		storage_manager.stream_file(state.ofilename, writer);	
@@ -153,7 +153,7 @@ void Server::list_files(ClientState& state, int clientfd)
 	
 	std::cout << "Attempting to send files list" << std::endl;
     
-    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
 	std::cout << "Files list sent" << std::endl;
 	std::cout << message << std::endl;
@@ -166,15 +166,19 @@ void Server::delete_file(ClientState& state, int clientfd)
 	storage_manager.delete_file(state.file_to_delete);
 
 	std::string message = "File deleted\n";	
-    crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
 
 	state.command = DEFAULT;
 }
 
 std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 {
-	std::string line = state.rx_buffer.substr(0, pos);
-	state.rx_buffer.erase(0, pos + 1);
+	std::string line(
+            reinterpret_cast<const char*>(state.rx_buffer.data()),
+            pos
+    );
+
+	state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + pos + 1);
 
 	if (!line.empty() && line.back() == '\r') {
 		line.pop_back();
@@ -295,7 +299,7 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
+    storage_manager.crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
 }
 
 void Server::client_loop(int clientfd)
@@ -341,20 +345,19 @@ void Server::client_loop(int clientfd)
             // chunk
 
 			// assemble protocol messages
-            //
-            // TODO - need to update this stuff to work with std::vector instead of string
-			size_t pos;
-			while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
+			while (true) {
+                auto it = std::find(state.rx_buffer.begin(),
+                                    state.rx_buffer.end(),
+                                    static_cast<uint8_t>('\n'));
+                if (it == state.rx_buffer.end())
+                    break;
 
+                size_t pos = std::distance(state.rx_buffer.begin(), it);
 				std::string response = parse_msg(state, pos, clientfd);
 
 				// send response
-				ssize_t sent = send(clientfd, response.c_str(), response.size(), 0);
-				if (sent < 0) {
-					perror("send failed");
-					state.connected = false;
-					break;
-				}	
+                // TODO - encrypted_string_send return value should be a bool so we can easily error check
+                storage_manager.crypto_transit.encrypted_string_send(response, writer.write, SESSION_KEY);
 
 				if (response == "200 BYE\n") {
 					state.connected = false;

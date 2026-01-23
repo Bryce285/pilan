@@ -2,9 +2,11 @@
 
 using json = nlohmann::json;
 
-ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config) 
+ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config, const uint8_t* FEK, const uint8_t* SESSION_KEY) 
 {
 	this->config = config;
+    this->FEK = FEK;
+    this->SESSION_KEY = SESSION_KEY;
 }
 
 uint64_t ServerStorageManager::unix_timestamp_ms()
@@ -55,8 +57,7 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
         std::cerr << "hash init failed" << std::endl;
     }
 
-    // TODO - need a CryptoAtRest object here
-    handle.encrypt_state = file_encrypt_init(handle.fd, FEK);
+    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK);
 
 	return handle;	
 }
@@ -66,9 +67,7 @@ void ServerStorageManager::write_chunk(UploadHandle& handle, const uint8_t* data
 	if (!handle.active) throw std::logic_error("Upload not active");
 
     crypto_generichash_update(&handle.hash_state, data, len);
-
-    // TODO - we need to somehow get access to crypto.hpp here to use this function
-    encrypt_chunk(handle.fd, handle.encrypt_state, data, final_chunk);
+    crypto_rest.encrypt_chunk(handle.fd, handle.encrypt_state, data, final_chunk);
 
 	handle.bytes_written += len;
 }
@@ -219,8 +218,7 @@ void ServerStorageManager::delete_file(const std::string& name)
 
 void ServerStorageManager::data_to_send(const uint8_t* data, size_t len)
 {
-    // TODO - need a CryptoInTransit object to call this
-    encrypt_message(data, writer.write, SESSION_KEY);
+    crypto_transit.encrypt_message(data, writer.write, SESSION_KEY);
 }
 
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
@@ -230,11 +228,6 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	FileInfo file_info = get_file_info(name);
 	uint64_t size = file_info.size_bytes;
 	
-	// TODO - add to stream writer a function to send ascii data so that headers can be sent from here
-	//std::string header = "DOWNLOAD " + name + " " + std::to_string(size) + "\n";
-	
-	//writer.write(header.c_str(), sizeof(header));
-    
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
 		throw std::runtime_error("File not found");
@@ -242,8 +235,7 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
     
     crypto_secretstream_xchacha20poly1305_state decrypt_state = file_decrypt_init(fd, FEK);
 
-    // TODO - need a CryptoAtRest object to call this function
-    decrypt_chunk(fd, decrypt_state, data_to_send);
+    crypto_rest.decrypt_chunk(fd, decrypt_state, data_to_send);
 
 	// close file
 	writer.flush();

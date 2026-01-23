@@ -48,9 +48,6 @@ class Server
         uint64_t tak_subkey_id = 2;
         const uint8_t TAK[crypto_kdf_KEYBYTES] = key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id);
 
-        CryptoAtRest crypto_rest;
-        CryptoInTransit crypto_transit;
-
         const uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
 		
 		ServerStorageManager::StorageConfig config {
@@ -63,7 +60,7 @@ class Server
 			.read_only = false
 		};
 
-		ServerStorageManager storage_manager{config};
+		ServerStorageManager storage_manager{config, FEK, SESSION_KEY};
 
 		// TODO - move this inside the state struct
 		ServerStorageManager::UploadHandle cur_upload_handle;
