@@ -17,9 +17,8 @@ void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly13
 {
     const size_t PLAINTEXT_LEN = std::size(plaintext);
 
-    // TODO - I don't think ciphertext length should be set here as it is set by the push function
-    const size_t CIPHERTEXT_LEN = PLAINTEXT_LEN + crypto_secret_stream_xchacha20poly1305_ABYTES;
-    uint8_t ciphertext[CIPHERTEXT_LEN];
+    size_t ciphertext_len;
+    uint8_t ciphertext[PLAINTEXT_LEN + crypto_secret_stream_xchacha20poly1305_ABYTES];
     
     if (!FINAL_CHUNK) {
         crypto_secretstream_xchacha20poly1305_push (
@@ -68,8 +67,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
     // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
     uint8_t plaintext[CHUNK_SIZE];
     
-    // TODO - i don't think plaintext length should be set as it is returned by the pull function
-    const size_t PLAINTEXT_LEN = CHUNK_SIZE;
+    size_t plaintext_len;
     const size_t CIPHERTEXT_LEN = CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
     uint8_t ciphertext[CIPHERTEXT_LEN];
     uint8_t tag;
@@ -79,7 +77,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
         if (crypto_secretstream_xchacha20poly1305_pull(
                     &state,
                     plaintext,
-                    &PLAINTEXT_LEN,
+                    &plaintext_len,
                     &tag,
                     ciphertext,
                     CIPHERTEXT_LEN,

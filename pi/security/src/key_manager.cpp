@@ -7,7 +7,7 @@ uint8_t* KeyManager::load_or_gen_mdk()
     if (std::filesystem::exists(MDK_PATH)) {
         std::ifstream in_file(MDK_PATH, std::ios::binary);
         if (!in_file) {
-            throw std::runtime_error("File error: failed to open " + MDK_PATH.string());
+            throw std::runtime_error("File error: Failed to open " + MDK_PATH.string());
         }
         
         std::streampos size = in_file.tellg();
@@ -18,6 +18,12 @@ uint8_t* KeyManager::load_or_gen_mdk()
         }
 
         in_file.read(key_buf, crypto_kdf_KEYBYTES);
+
+        std::streamsize bytes_read = in_file.gcount();
+        if (bytes_read != crypto_kdf_KEYBYTES) {
+            throw std::runtime_error("MDK error: Wrong number of bytes read");
+        }
+
         in_file.close();
     }
     else {

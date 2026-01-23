@@ -1,5 +1,10 @@
 #include "client.hpp"
 
+Client::Client()
+{
+    crypto_transit.derive_session_key(SESSION_KEY);
+}
+
 void Client::send_binary(std::filesystem::path filepath, int sock)
 {
 	std::ifstream inFile(filepath, std::ios::binary);
@@ -53,11 +58,10 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		
 		std::cout << "Command sent: " << data << std::endl;
 	    
-        // TODO - get SESSION_KEY from somewhere
         crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
 		
 		std::string filepath_str = filepath.string();
-		storage_manager.stream_file(filepath_str, writer);
+		storage_manager.stream_file(filepath_str, writer, SESSION_KEY);
 	}
 
 	// DOWNLOAD command format: DOWNLOAD <filename>
@@ -105,10 +109,12 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 void Client::parse_msg(ServerState& state, size_t pos)
 {
+	std::string line(
+            reinterpret_cast<const char*>(state.rx_buffer.data()),
+            pos
+    );
 
-    // TODO - rewrite this method to work with std::vector instead of string
-	std::string line = state.rx_buffer.substr(0, pos);
-	state.rx_buffer.erase(0, pos + 1);
+	state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + pos + 1);
 
 	if (!line.empty() && line.back() == '\r') {
 		line.pop_back();
@@ -140,9 +146,9 @@ bool Client::download_file(ServerState& state)
 
 	if (to_write > 0) {
 		// TODO - might need to change the data type of write_chunk data arg to account for max possible size of rx_buffer
-		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer.c_str(), to_write);
+		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer.data(), to_write);
 		state.in_bytes_remaining -= to_write;
-		state.rx_buffer.erase(0, to_write);
+		state.rx_buffer.erase(state.rx_buffer.begin(), to_write);
 	}
 				
 	if (state.in_bytes_remaining == 0) {
@@ -199,7 +205,7 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
 void Client::handle_server_msg(ServerState& state, int sock)
 {
-	char buf[4096];
+	//uint8_t buf[4096];
 
 	while (state.connected) {
         
@@ -230,11 +236,17 @@ void Client::handle_server_msg(ServerState& state, int sock)
 		
 		// assemble protocol messages from server
 		if (state.command == DEFAULT) {
-			size_t pos;
-			while ((pos = state.rx_buffer.find('\n')) != std::string::npos) {
-				parse_msg(state, pos);
-			}
-		}
+		    while (true) {
+                auto it = std::find(state.rx_buffer.begin(),
+                                    state.rx_buffer.end(),
+                                    static_cast<uint8_t>('\n'));
+                if (it == state.rx_buffer.end())
+                    break;
+
+                size_t pos = std::distance(state.rx_buffer.begin(), it);
+                parse_msg(state, pos);
+            }
+        }
 
 		switch (state.command) {
 			case DOWNLOAD: {

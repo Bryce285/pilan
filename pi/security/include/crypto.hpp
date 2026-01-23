@@ -10,7 +10,7 @@ class CryptoAtRest
 
         // TODO - use sodium_memzero and sodium_mlock to secure memory
 
-        // TODO - make sure the recv buffers is the same size
+        // TODO - make sure the recv buffers are the same size
         const size_t CHUNK_SIZE = 16348; // 16kB
 
         crypto_secretstream_xchacha20poly1305_state file_encrypt_init(int fd_out, const uint8_t* fek);

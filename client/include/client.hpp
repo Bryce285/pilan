@@ -37,8 +37,8 @@ class Client
 
 			ClientStorageManager::DownloadHandle cur_download_handle;
 		};
-
-        // TODO - add a constructor and derive session key from there
+        
+        Client();
 
 		void handle_cmd(ServerState& state, std::string cmd, int sock);
 		void handle_server_msg(ServerState& state, int sock);
@@ -52,6 +52,7 @@ class Client
 		ClientStorageManager storage_manager{config};
         CryptoInTransit crypto_transit;
         
+        uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
 
         bool recv_all(int sock, uint8_t* buf, size_t len);
         bool recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);

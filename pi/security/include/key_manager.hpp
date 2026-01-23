@@ -18,6 +18,6 @@ class KeyManager
 		void derive_key(const uint8_t* mdk, uint8_t* key_out, size_t key_len, std::string context);
 
     private:
-        const std::filesystem::path MDK_PATH = "/home/bryce/projects/PiFileshare/PiFileshare/pi/mdk_tmp_path/mdk";
+        const std::filesystem::path MDK_PATH = "/home/bryce/projects/PiFileshare/PiFileshare/pi/mdk_tmp_path/mdk.txt";
 };
 

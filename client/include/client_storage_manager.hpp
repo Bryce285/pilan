@@ -43,7 +43,7 @@ class ClientStorageManager
 		void abort_download(DownloadHandle& handle);
 		
 		FileInfo get_file_info(const std::string& path_str);
-		void stream_file(const std::string& path_str, StreamWriter& writer);
+		void stream_file(const std::string& path_str, StreamWriter& writer, const uint8_t* SESSION_KEY);
 
 	private:
 		StorageConfig config;

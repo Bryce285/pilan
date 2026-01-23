@@ -4,11 +4,35 @@
 
 uint8_t* CryptoInTransit::load_tak()
 {
-    // TODO - implement this function
-    std::filesystem::path tak_path = "/path/to/tak";
-    uint8_t* tak;
+    uint8_t key_buf[crypto_kdf_KEYBYTES];
+    
+    if (std::filesystem::exists(TAK_PATH)) {
+        std::ifstream in_file(TAK_PATH, std::ios::binary);
+        if (!in_file) {
+            throw std::runtime_error("File error: Failed to open " + MDK_PATH.string());
+        }
+        
+        std::streampos size = in_file.tellg();
+        in_file.seekg(0, std::ios::beg);
 
-    return tak;
+        if (size != crypto_kdf_KEYBYTES) {
+            throw std::runtime_error("TAK error: Transfer authentication key does not have expected size");
+        }
+        
+        in_file.read(key_buf, crypto_kdf_KEYBYTES);
+
+        std::streamsize bytes_read = in_file.gcount();
+        if (bytes_read != crypto_kdf_KEYBYTES) {
+            throw std::runtime_error("TAK error: Wrong number of bytes read");
+        }
+
+        in_file.close();
+    }
+    else {
+        throw std::runtime_error("TAK error: Transfer authentication key not found");
+    }
+
+    return key_buf;
 }
 
 void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
