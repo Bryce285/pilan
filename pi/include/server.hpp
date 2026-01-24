@@ -34,8 +34,6 @@ class Server
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
-        
-        SocketStreamWriter writer(clientfd);
 
         KeyManager key_manager;
         const uint8_t MDK[crypto_kdf_KEYBYTES] = key_manager.load_or_gen_mdk();

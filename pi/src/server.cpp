@@ -11,7 +11,9 @@ void Server::set_timeout(int clientfd)
 
 bool Server::authenticate(int clientfd)
 {
-    // client uses nonce to generate authentication tag
+    SocketStreamWriter writer(clientfd);
+
+	// client uses nonce to generate authentication tag
     uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES] = storage_manager.crypto_transit.get_nonce();
 	
     size_t total = 0;
@@ -123,6 +125,8 @@ bool Server::upload_file(ClientState& state)
 
 void Server::download_file(ClientState& state, int clientfd)
 {
+    SocketStreamWriter writer(clientfd);
+
 	std::filesystem::path path = config.files_dir / state.ofilename;
 	uint64_t size = std::filesystem::file_size(path);
 
@@ -142,6 +146,8 @@ void Server::download_file(ClientState& state, int clientfd)
 
 void Server::list_files(ClientState& state, int clientfd)
 {
+    SocketStreamWriter writer(clientfd);
+	
 	std::cout << "Entered list function" << std::endl;
 	
 	std::vector<ServerStorageManager::FileInfo> files = storage_manager.list_files();
@@ -163,6 +169,8 @@ void Server::list_files(ClientState& state, int clientfd)
 
 void Server::delete_file(ClientState& state, int clientfd)
 {
+    SocketStreamWriter writer(clientfd);
+
 	storage_manager.delete_file(state.file_to_delete);
 
 	std::string message = "File deleted\n";	
@@ -303,7 +311,9 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 }
 
 void Server::client_loop(int clientfd)
-{
+{	
+    SocketStreamWriter writer(clientfd);
+
 	ClientState state;
 	uint8_t buf[16384];
 	ssize_t n = 0;

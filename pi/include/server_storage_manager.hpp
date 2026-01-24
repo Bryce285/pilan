@@ -10,6 +10,7 @@
 #include <sodium.h>
 
 #include "stream_writer.hpp"
+#include "crypto.hpp"
 
 #pragma once
 

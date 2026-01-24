@@ -6,7 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(sodium REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SODIUM REQUIRED libsodium)
 
 file(GLOB SOURCES "src/*.cpp")
 add_executable(server ${SOURCES})
@@ -14,10 +15,12 @@ add_executable(server ${SOURCES})
 target_include_directories(server PRIVATE
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_SOURCE_DIR}/../shared/include
+	${PROJECT_SOURCE_DIR}/security/include
+	${SODIUM_INCLUDE_DIRS}
 )
 
 target_link_libraries(server
     PRIVATE
         nlohmann_json::nlohmann_json
-        sodium
+        ${SODIUM_LIBRARIES}
 )
