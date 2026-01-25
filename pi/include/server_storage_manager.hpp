@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <nlohmann/json.hpp>
 #include <chrono>
+#include <algorithm>
 #include <sodium.h>
 
 #include "stream_writer.hpp"
@@ -55,11 +56,10 @@ class ServerStorageManager
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
         
-        // TODO - enforce size of FEK and SESSION_KEY from here
-		explicit ServerStorageManager(const StorageConfig& config, const uint8_t* FEK, const uint8_t* SESSION_KEY);	
+		explicit ServerStorageManager(const StorageConfig& config, uint8_t FEK[crypto_kdf_KEYBYTES], uint8_t SESSION_KEY[crypto_kdf_KEYBYTES]);	
 		
 		UploadHandle start_upload(const std::string& name, size_t size);
-		void write_chunk(UploadHandle& handle, const char* data, size_t len);
+		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);
 		void commit_upload(UploadHandle& handle);
 		void abort_upload(UploadHandle& handle);
 
@@ -79,5 +79,5 @@ class ServerStorageManager
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);
 
-        void data_to_send(const uint8_t* data, size_t len);
+        void data_to_send(const uint8_t* data, size_t len, StreamWriter& writer);
 };

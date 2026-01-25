@@ -1,5 +1,12 @@
 #include "server.hpp"
 
+Server::Server()
+{
+	key_manager.load_or_gen_mdk(MDK);
+	key_manager.derive_key(MDK, FEK, fek_context, fek_subkey_id);
+	key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id);
+}
+
 void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
@@ -14,13 +21,14 @@ bool Server::authenticate(int clientfd)
     SocketStreamWriter writer(clientfd);
 
 	// client uses nonce to generate authentication tag
-    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES] = storage_manager.crypto_transit.get_nonce();
+    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+	storage_manager.crypto_transit.get_nonce(nonce);
 	
     size_t total = 0;
 	while (total < sizeof(nonce)) {
 		ssize_t sent = send(clientfd, nonce + total, sizeof(nonce) - total, 0);
 		if (sent <= 0) {
-			std::cerr << "Message failed to send: " << message << std::endl;
+			std::cerr << "Nonce failed to send" << std::endl;
             return false;
 		}
 
@@ -64,13 +72,13 @@ bool Server::authenticate(int clientfd)
     
     const size_t OFFSET = 5; // index past the protocol command
     std::vector<uint8_t> rx_auth_tag;
-    std::copy_n(rx_buffer.begin() + OFFSET, rx_buffer.size(), rx_auth_tag); 
+    std::copy_n(rx_buffer.begin() + OFFSET, rx_buffer.size(), rx_auth_tag.begin()); 
 
 	if (!rx_auth_tag.empty() && rx_auth_tag.back() == '\n') {
 		rx_auth_tag.pop_back();
 	}
     
-    if (!crypto_transit.verify_auth(rx_auth_tag, nonce, TAK)) {
+    if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK)) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		
@@ -90,7 +98,13 @@ bool Server::authenticate(int clientfd)
     storage_manager.crypto_transit.derive_session_key(SESSION_KEY, TAK);
     
 	std::string message = "200 AUTH OK\n";
-    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(
+		message, 
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len);
+		}, 
+		SESSION_KEY
+	);
 
 	return true;
 }
@@ -104,14 +118,14 @@ bool Server::upload_file(ClientState& state)
 	if (to_write > 0) {
 
         if (state.in_bytes_remaining - to_write == 0) {
-		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write, true);
+		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.data(), to_write, true);
         }
         else {
-		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.c_str(), to_write, false);
+		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.data(), to_write, false);
         }
 
 		state.in_bytes_remaining -= to_write;
-		state.rx_buffer.erase(0, to_write);
+		state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + to_write);
 
 		if (state.in_bytes_remaining == 0) {
 			storage_manager.commit_upload(cur_upload_handle);						
@@ -132,7 +146,13 @@ void Server::download_file(ClientState& state, int clientfd)
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
-    storage_manager.crypto_transit.encrypted_string_send(header, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(
+		header, 
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len);
+		}, 
+		SESSION_KEY
+	);
 
 	try {
 		storage_manager.stream_file(state.ofilename, writer);	
@@ -159,7 +179,13 @@ void Server::list_files(ClientState& state, int clientfd)
 	
 	std::cout << "Attempting to send files list" << std::endl;
     
-    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(
+		message,  
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len);
+		}, 
+		SESSION_KEY
+	);
 
 	std::cout << "Files list sent" << std::endl;
 	std::cout << message << std::endl;
@@ -174,7 +200,13 @@ void Server::delete_file(ClientState& state, int clientfd)
 	storage_manager.delete_file(state.file_to_delete);
 
 	std::string message = "File deleted\n";	
-    storage_manager.crypto_transit.encrypted_string_send(message, writer.write, SESSION_KEY);
+    storage_manager.crypto_transit.encrypted_string_send(
+		message,  
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len);
+		}, 
+		SESSION_KEY
+	);
 
 	state.command = DEFAULT;
 }
@@ -291,7 +323,7 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     uint32_t ciphertext_len = ntohl(len_net);
 
-    if (cipher_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
+    if (ciphertext_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
         return false;
     }
 
@@ -307,7 +339,9 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    storage_manager.crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
+    storage_manager.crypto_transit.decrypt_message(ciphertext.data(), plaintext_out, session_key, nonce);
+	
+	return true;
 }
 
 void Server::client_loop(int clientfd)
@@ -367,7 +401,13 @@ void Server::client_loop(int clientfd)
 
 				// send response
                 // TODO - encrypted_string_send return value should be a bool so we can easily error check
-                storage_manager.crypto_transit.encrypted_string_send(response, writer.write, SESSION_KEY);
+                storage_manager.crypto_transit.encrypted_string_send(
+					response, 
+					[&](const uint8_t* data, size_t len) {
+						writer.write(data, len);
+					}, 
+					SESSION_KEY
+				);
 
 				if (response == "200 BYE\n") {
 					state.connected = false;

@@ -1,9 +1,7 @@
 #include "key_manager.hpp"
 
-uint8_t* KeyManager::load_or_gen_mdk()
+void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
-    uint8_t key_buf[crypto_kdf_KEYBYTES];
-    
     if (std::filesystem::exists(MDK_PATH)) {
         std::ifstream in_file(MDK_PATH, std::ios::binary);
         if (!in_file) {

@@ -1,12 +1,13 @@
 #include <sodium.h>
 #include "key_manager.hpp"
+#include "stream_writer.hpp"
 
 #pragma once
 
 class CryptoAtRest
 {
     public:
-        using PlaintextSink = std::function<void(const uint8_t* data, size_t len)>;
+        using PlaintextSink = std::function<void(const uint8_t* data, size_t len, StreamWriter& writer)>;
 
         // TODO - use sodium_memzero and sodium_mlock to secure memory
 
@@ -17,7 +18,7 @@ class CryptoAtRest
         void encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly1305_state& state, uint8_t* plaintext, const bool FINAL_CHUNK);
 
         crypto_secretstream_xchacha20poly1305_state file_decrypt_init(int fd_in, const uint8_t* fek);
-        void decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready);
+        void decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready, StreamWriter& writer);
 };
 
 class CryptoInTransit
@@ -26,12 +27,12 @@ class CryptoInTransit
         using DataSink = std::function<void(const uint8_t* data, size_t len)>;
 
         // for client authentication
-        uint8_t* get_nonce();
+        void get_nonce(uint8_t out_buf[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES]);
         bool verify_auth(uint8_t* auth_tag, const uint8_t* nonce, const uint8_t* tak);
         void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
 
-        void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
-        void decrypt_message(uint8_t* ciphertext, DataSink on_message_ready, uint8_t* session_key, uint8_t* nonce);
+        void encrypt_message(const uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
+        void decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, const uint8_t* session_key, uint8_t* nonce);
 
         // this function is for ascii strings, not binary data
         void encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key);

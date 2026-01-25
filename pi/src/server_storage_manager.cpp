@@ -2,11 +2,12 @@
 
 using json = nlohmann::json;
 
-ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config, const uint8_t* FEK, const uint8_t* SESSION_KEY) 
+ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config, uint8_t FEK[crypto_kdf_KEYBYTES], uint8_t SESSION_KEY[crypto_kdf_KEYBYTES]) 
 {
 	this->config = config;
-    this->FEK = FEK;
-    this->SESSION_KEY = SESSION_KEY;
+	
+	std::copy(FEK, FEK + crypto_kdf_KEYBYTES, this->FEK);
+	std::copy(SESSION_KEY, SESSION_KEY + crypto_kdf_KEYBYTES, this->SESSION_KEY);
 }
 
 uint64_t ServerStorageManager::unix_timestamp_ms()
@@ -62,7 +63,7 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
 	return handle;	
 }
 
-void ServerStorageManager::write_chunk(UploadHandle& handle, const uint8_t* data, size_t len, bool final_chunk)
+void ServerStorageManager::write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk)
 {
 	if (!handle.active) throw std::logic_error("Upload not active");
 
@@ -216,9 +217,15 @@ void ServerStorageManager::delete_file(const std::string& name)
 	}
 }
 
-void ServerStorageManager::data_to_send(const uint8_t* data, size_t len)
+void ServerStorageManager::data_to_send(const uint8_t* data, size_t len, StreamWriter& writer)
 {
-    crypto_transit.encrypt_message(data, writer.write, SESSION_KEY);
+    crypto_transit.encrypt_message(
+		data, 
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len); 
+		}, 
+		SESSION_KEY
+	);
 }
 
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
@@ -233,9 +240,16 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		throw std::runtime_error("File not found");
 	}
     
-    crypto_secretstream_xchacha20poly1305_state decrypt_state = file_decrypt_init(fd, FEK);
+    crypto_secretstream_xchacha20poly1305_state decrypt_state = crypto_rest.file_decrypt_init(fd, FEK);
 
-    crypto_rest.decrypt_chunk(fd, decrypt_state, data_to_send);
+    crypto_rest.decrypt_chunk(
+		fd, 
+		decrypt_state, 
+		[&](const uint8_t* data, size_t len, StreamWriter& writer) {
+			data_to_send(data, len, writer); 
+		}, 
+		writer
+	);
 
 	// close file
 	writer.flush();

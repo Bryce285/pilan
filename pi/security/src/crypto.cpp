@@ -62,7 +62,7 @@ crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int 
     return state;
 }
 
-void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready)
+void CryptoAtRest::decrypt_chunk(int fd_in, StreamWriter& writer, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready)
 {
     // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
     uint8_t plaintext[CHUNK_SIZE];
@@ -88,7 +88,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
             return;
         }
 
-        on_chunk_ready(plaintext, PLAINTEXT_LEN);
+        on_chunk_ready(plaintext, PLAINTEXT_LEN, writer);
 
         if (tag == crypto_secretstream_xchacha20poly1305_TAG_FINAL) {
             break;
@@ -96,12 +96,9 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
     }
 }
 
-uint8_t* CryptoInTransit::get_nonce()
+void CryptoInTransit::get_nonce(uint8_t out_buf[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES])
 {
-    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
-    randombytes_buf(nonce, sizeof(nonce));
-
-    return nonce;
+    randombytes_buf(out_buf, sizeof(out_buf));
 }
 
 bool CryptoInTransit::verify_auth(uint8_t* auth_tag, const uint8_t* nonce, const uint8_t* tak)
@@ -162,7 +159,7 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, DataSink on_message_re
     on_message_ready(ciphertext, CIPHERTEXT_LEN);
 }
 
-void CryptoInTransit::decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce)
+void CryptoInTransit::decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, const uint8_t* session_key, uint8_t* nonce)
 {
     const size_t CIPHERTEXT_LEN = std::size(ciphertext);
     if (CIPHERTEXT_LEN < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
