@@ -1,4 +1,12 @@
+#include <functional>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <unistd.h>
+#include <arpa/inet.h>
+
 #include <sodium.h>
+
 #include "key_manager.hpp"
 #include "stream_writer.hpp"
 
