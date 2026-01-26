@@ -43,22 +43,35 @@ int main() {
         total += n;
     }
     
-    uint8_t auth_tag[crypto_auth_hmacsha256_BYTES];
-    crypto_transit.get_auth_tag(auth_tag, server_nonce);
-    uint8_t auth_keyword[] = reinterpret_cast<uint8_t>("AUTH");
+	constexpr std::string_view auth_keyword = "AUTH";
 
-    uint8_t auth_msg[std::size(auth_tag) + std::size(auth_keyword)];
-    std::copy(auth_keyword, auth_keyword + std::size(auth_keyword), auth_msg);
-    std::copy(auth_tag, auth_tag + std::size(auth_tag), auth_msg);
+	uint8_t auth_tag[crypto_auth_hmacsha256_BYTES];
+	crypto_transit.get_auth_tag(auth_tag, server_nonce);
+
+	std::vector<uint8_t> auth_msg;
+	auth_msg.reserve(auth_keyword.size() + sizeof(auth_tag));
+
+	auth_msg.insert(
+    	auth_msg.end(),
+    	reinterpret_cast<const uint8_t*>(auth_keyword.data()),
+    	reinterpret_cast<const uint8_t*>(auth_keyword.data()) + auth_keyword.size()
+	);
+
+	auth_msg.insert(
+    	auth_msg.end(),
+    	auth_tag,
+    	auth_tag + sizeof(auth_tag)
+	);
 
     total = 0;
     while (total < sizeof(auth_tag)) {
-        ssize_t sent = send(sock, auth_msg + total, std::size(auth_msg) - total, 0);
+        ssize_t sent = send(sock, auth_msg.data() + total, auth_msg.size() - total, 0);
         if (sent <= 0) {
             throw std::runtime_error("Failed to send authentication message");
         }
 
-        total += sent;
+		// TODO - always cast when mixing ssize_t and size_t
+        total += static_cast<size_t>(sent);
     }
 
 
