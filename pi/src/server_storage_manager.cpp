@@ -68,7 +68,7 @@ void ServerStorageManager::write_chunk(UploadHandle& handle, uint8_t* data, size
 	if (!handle.active) throw std::logic_error("Upload not active");
 
     crypto_generichash_update(&handle.hash_state, data, len);
-    crypto_rest.encrypt_chunk(handle.fd, handle.encrypt_state, data, final_chunk);
+    crypto_rest.encrypt_chunk(handle.fd, handle.encrypt_state, data, len, final_chunk);
 
 	handle.bytes_written += len;
 }
@@ -220,7 +220,8 @@ void ServerStorageManager::delete_file(const std::string& name)
 void ServerStorageManager::data_to_send(const uint8_t* data, size_t len, StreamWriter& writer)
 {
     crypto_transit.encrypt_message(
-		data, 
+		data,
+		len, 
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len); 
 		}, 

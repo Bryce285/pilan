@@ -339,7 +339,7 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    storage_manager.crypto_transit.decrypt_message(ciphertext.data(), plaintext_out, session_key, nonce);
+    storage_manager.crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
 	
 	return true;
 }

@@ -15,7 +15,7 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
             throw std::runtime_error("MDK error: master device key does not have expected size");
         }
 
-        in_file.read(key_buf, crypto_kdf_KEYBYTES);
+        in_file.read(reinterpret_cast<char*>(key_buf), crypto_kdf_KEYBYTES);
 
         std::streamsize bytes_read = in_file.gcount();
         if (bytes_read != crypto_kdf_KEYBYTES) {
@@ -27,12 +27,10 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
     else {
         crypto_kdf_keygen(key_buf);
     }
-
-    return key_buf;
 }
 
 void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id)
 {
     // TODO - error handling here
-	crypto_kdf_derive_from_key(key_out, crypto_kdf_KEYBYTES, subkey_id, context, mdk);
+	crypto_kdf_derive_from_key(key_out, crypto_kdf_KEYBYTES, subkey_id, context.data(), mdk);
 }
