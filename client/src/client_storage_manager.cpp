@@ -44,7 +44,7 @@ ClientStorageManager::DownloadHandle ClientStorageManager::start_download(const 
 	return handle;
 }
 
-void ClientStorageManager::write_chunk(DownloadHandle& handle, const char* data, size_t len)
+void ClientStorageManager::write_chunk(DownloadHandle& handle, uint8_t* data, size_t len)
 {
 	if (!handle.active) throw std::logic_error("Download not active");
 

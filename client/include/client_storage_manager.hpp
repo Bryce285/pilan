@@ -38,7 +38,7 @@ class ClientStorageManager
 		explicit ClientStorageManager(const StorageConfig& config);
 
 		DownloadHandle start_download(const std::string& name, size_t size);
-		void write_chunk(DownloadHandle& handle, const char* data, size_t len);
+		void write_chunk(DownloadHandle& handle, uint8_t* data, size_t len);
 		void commit_download(DownloadHandle& handle);
 		void abort_download(DownloadHandle& handle);
 		

@@ -2,7 +2,7 @@
 
 Client::Client()
 {
-    crypto_transit.derive_session_key(SESSION_KEY);
+    crypto_transit.derive_session_key(session_key);
 }
 
 void Client::send_binary(std::filesystem::path filepath, int sock)
@@ -148,7 +148,7 @@ bool Client::download_file(ServerState& state)
 		// TODO - might need to change the data type of write_chunk data arg to account for max possible size of rx_buffer
 		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer.data(), to_write);
 		state.in_bytes_remaining -= to_write;
-		state.rx_buffer.erase(state.rx_buffer.begin(), to_write);
+		state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + to_write);
 	}
 				
 	if (state.in_bytes_remaining == 0) {
@@ -161,7 +161,7 @@ bool Client::download_file(ServerState& state)
 	return false;
 }
 
-bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
+bool Client::recv_all(int sock, uint8_t* buf, size_t len) {
     size_t total = 0;
 
     while (total < len) {
@@ -175,7 +175,7 @@ bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
     return true;
 }
 
-bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
+bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
 {
     uint32_t len_net;
     if (!recv_all(sock, reinterpret_cast<uint8_t*>(&len_net), sizeof(len_net))) {
@@ -184,7 +184,7 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     uint32_t ciphertext_len = ntohl(len_net);
 
-    if (cipher_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
+    if (ciphertext_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
         return false;
     }
 
@@ -200,7 +200,9 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    crypto_transit.decrypt_message(ciphertext, plaintext_out, session_key, nonce);
+    crypto_transit.decrypt_message(ciphertext.data(), plaintext_out, session_key, nonce);
+
+	return true;
 }
 
 void Client::handle_server_msg(ServerState& state, int sock)
@@ -231,7 +233,7 @@ void Client::handle_server_msg(ServerState& state, int sock)
         */
 
         std::vector<uint8_t> plaintext_buf;
-        recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
+        recv_encrypted_msg(sock, session_key, plaintext_buf);
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		// assemble protocol messages from server
@@ -255,7 +257,10 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			}
 			
 			case DEFAULT: {
-				std::cout << buf << std::endl;
+				for (uint8_t c : plaintext_buf) {
+					std::cout << c << " ";
+				}
+				std::cout << std::endl;
 			}
 
 			default: {

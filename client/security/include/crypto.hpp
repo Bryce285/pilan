@@ -10,7 +10,7 @@ class CryptoInTransit
         
         uint8_t* load_tak();
         void get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce);
-		void derive_session_key(uint8_t* key_buf, const uint8_t* tak);
+		void derive_session_key(uint8_t* key_buf);
 		
 		void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
 		void decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce);

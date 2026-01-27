@@ -52,10 +52,10 @@ class Client
 		ClientStorageManager storage_manager{config};
         CryptoInTransit crypto_transit;
         
-        uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
+        uint8_t session_key[crypto_kdf_KEYBYTES];
 
         bool recv_all(int sock, uint8_t* buf, size_t len);
-        bool recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);
+        bool recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);
 
 		void send_binary(std::filesystem::path filepath, int sock);
 		void send_header(std::string header, int sock);
