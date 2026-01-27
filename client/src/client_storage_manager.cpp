@@ -87,7 +87,7 @@ ClientStorageManager::FileInfo ClientStorageManager::get_file_info(const std::st
 	return file_info;
 }
 
-void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter& writer, const uint8_t* SESSION_KEY)
+void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter& writer, uint8_t* session_key)
 {
 	std::filesystem::path path = path_str;
 	std::string name = path.filename();
@@ -116,7 +116,14 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 		if (n == 0) break;
 		if (n < 0) throw std::runtime_error("IO error");
 
-		crypto_transit.encrypt_message(buffer, writer.write, SESSION_KEY);
+		crypto_transit.encrypt_message(
+			buffer, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			}, 
+			session_key
+		);
+
 		total += n;
 	}
 

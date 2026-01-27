@@ -58,10 +58,16 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		
 		std::cout << "Command sent: " << data << std::endl;
 	    
-        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
+        crypto_transit.encrypted_string_send(
+			data, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			},
+			session_key
+		);
 		
 		std::string filepath_str = filepath.string();
-		storage_manager.stream_file(filepath_str, writer, SESSION_KEY);
+		storage_manager.stream_file(filepath_str, writer, session_key);
 	}
 
 	// DOWNLOAD command format: DOWNLOAD <filename>
@@ -74,13 +80,25 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
 		data.append(keyword + " " + filename + "\n");
 
-        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
+        crypto_transit.encrypted_string_send(
+			data, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			}, 
+			session_key
+		);
 	}
 	// LIST command format: LIST
 	else if (cmd == "LIST") {
 		data = "LIST\n";
 
-        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
+        crypto_transit.encrypted_string_send(
+			data, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			}, 
+			session_key
+		);
 	}
 	// DELETE command format: DELETE <filename>
 	else if (cmd.rfind("DELETE", 0) == 0) {
@@ -94,13 +112,25 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		
 		std::cout << "Keyword: [" << keyword << "], filename: [" << filename << "]\n";
 	
-        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
+        crypto_transit.encrypted_string_send(
+			data, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			}, 
+			session_key
+		);
 	}
 	else if (cmd == "QUIT") {
 		state.connected = false;
 		data = "QUIT\n";
 
-        crypto_transit.encrypted_string_send(data, writer.write, SESSION_KEY);
+        crypto_transit.encrypted_string_send(
+			data, 
+			[&](const uint8_t* data, size_t len) {
+				writer.write(data, len); 
+			}, 
+			session_key
+		);
 	}
 	else {
 		throw std::runtime_error("Unrecognized command");

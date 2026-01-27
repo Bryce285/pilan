@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 
 #include "stream_writer.hpp"
+#include "crypto.hpp"
 
 #pragma once
 
@@ -36,6 +37,8 @@ class ClientStorageManager
 		};
 
 		explicit ClientStorageManager(const StorageConfig& config);
+		
+		CryptoInTransit crypto_transit;
 
 		DownloadHandle start_download(const std::string& name, size_t size);
 		void write_chunk(DownloadHandle& handle, uint8_t* data, size_t len);
@@ -43,7 +46,7 @@ class ClientStorageManager
 		void abort_download(DownloadHandle& handle);
 		
 		FileInfo get_file_info(const std::string& path_str);
-		void stream_file(const std::string& path_str, StreamWriter& writer, const uint8_t* SESSION_KEY);
+		void stream_file(const std::string& path_str, StreamWriter& writer, uint8_t* session_key);
 
 	private:
 		StorageConfig config;
