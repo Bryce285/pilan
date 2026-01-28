@@ -117,7 +117,8 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 		if (n < 0) throw std::runtime_error("IO error");
 
 		crypto_transit.encrypt_message(
-			buffer, 
+			buffer,
+			n, 
 			[&](const uint8_t* data, size_t len) {
 				writer.write(data, len); 
 			}, 

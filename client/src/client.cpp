@@ -230,7 +230,7 @@ bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchach
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    crypto_transit.decrypt_message(ciphertext.data(), plaintext_out, session_key, nonce);
+    crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
 
 	return true;
 }

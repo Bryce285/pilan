@@ -1,3 +1,8 @@
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <arpa/inet.h>
+#include <filesystem>
 #include <functional>
 #include <sodium.h>
 
@@ -8,12 +13,12 @@ class CryptoInTransit
     public:
 		using DataSink = std::function<void(const uint8_t* data, size_t len)>;
         
-        uint8_t* load_tak();
+        void load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES]);
         void get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce);
 		void derive_session_key(uint8_t* key_buf);
 		
-		void encrypt_message(uint8_t* plaintext, DataSink on_message_ready, uint8_t* session_key);
-		void decrypt_message(uint8_t* ciphertext, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce);
+		void encrypt_message(uint8_t* plaintext, size_t plaintext_len, DataSink on_message_ready, uint8_t* session_key);
+		void decrypt_message(uint8_t* ciphertext, size_t ciphertext_len, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce);
 		
 		void encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key);
 
