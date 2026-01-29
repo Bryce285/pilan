@@ -9,11 +9,11 @@ void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
         if (!in_file) {
             throw std::runtime_error("File error: Failed to open " + TAK_PATH.string());
         }
-        
-        std::streampos size = in_file.tellg();
-        in_file.seekg(0, std::ios::beg);
+       
+	   	auto size = std::filesystem::file_size(TAK_PATH); 
+		std::cout << std::to_string(size) << std::endl;
 
-        if (size != crypto_kdf_KEYBYTES) {
+		if (size != crypto_kdf_KEYBYTES) {
             throw std::runtime_error("TAK error: Transfer authentication key does not have expected size");
         }
         

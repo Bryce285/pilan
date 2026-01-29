@@ -26,11 +26,27 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
     }
     else {
         crypto_kdf_keygen(key_buf);
+		// TODO - write mdk to path
     }
+}
+
+void KeyManager::TMP_write_tak(uint8_t* tak)
+{
+	std::filesystem::path tak_path = "/home/bryce/projects/offlinePiFS/client/tak_tmp_path/tak.txt";
+
+	std::ofstream out_file(tak_path, std::ios::binary);
+	if (!out_file) {
+    	throw std::runtime_error("Failed to create/write tak file");
+	}
+
+	out_file.write(reinterpret_cast<const char*>(tak), crypto_kdf_KEYBYTES); 
+	out_file.close();
 }
 
 void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id)
 {
     // TODO - error handling here
 	crypto_kdf_derive_from_key(key_out, crypto_kdf_KEYBYTES, subkey_id, context.data(), mdk);
+
+	TMP_write_tak(key_out);
 }

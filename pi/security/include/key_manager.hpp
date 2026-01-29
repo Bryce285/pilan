@@ -18,6 +18,8 @@ class KeyManager
 		void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id);
 
     private:
-        const std::filesystem::path MDK_PATH = "/home/bryce/projects/PiFileshare/PiFileshare/pi/mdk_tmp_path/mdk.txt";
+        const std::filesystem::path MDK_PATH = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/mdk.txt";
+		
+		// TODO - this is a temp function for testing
+		void TMP_write_tak(uint8_t* tak);
 };
-

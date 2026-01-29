@@ -25,5 +25,5 @@ class CryptoInTransit
     private:
 
         // TODO - TAK storage as plaintext is for testing only, should be replaced by some kind of config file
-        const std::filesystem::path TAK_PATH = "/home/bryce/projects/PiFileshare/PiFileshare/client/tak_tmp_path/tak.txt";
+        const std::filesystem::path TAK_PATH = "/home/bryce/projects/offlinePiFS/client/tak_tmp_path/tak.txt";
 };

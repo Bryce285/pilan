@@ -35,10 +35,16 @@ int main() {
 
     size_t total = 0;
     while (total < sizeof(server_nonce)) {
-        ssize_t n = recv(sock, server_nonce, sizeof(server_nonce), 0);
-        if (n <= 0) {
-            throw std::runtime_error("Failed to receive nonce from server");
+        ssize_t n = recv(sock, server_nonce + total, sizeof(server_nonce) - total, 0);
+        if (n < 0) {
+			if (errno == EINTR) continue;
+			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+
+            throw std::runtime_error("recv failed");
         }
+		if (n == 0) {
+			throw std::runtime_error("Server closed connection early");
+		}
 
         total += n;
     }
@@ -47,6 +53,10 @@ int main() {
 
 	uint8_t auth_tag[crypto_auth_hmacsha256_BYTES];
 	crypto_transit.get_auth_tag(auth_tag, server_nonce);
+	
+	for (uint8_t b : auth_tag)
+    	printf("%02x", b);
+	printf("\n");
 
 	std::vector<uint8_t> auth_msg;
 	auth_msg.reserve(auth_keyword.size() + sizeof(auth_tag));
@@ -74,7 +84,7 @@ int main() {
         total += static_cast<size_t>(sent);
     }
 
-
+	std::cout << "auth message sent" << std::endl;
 
 	Client client;
 	std::string cmd;

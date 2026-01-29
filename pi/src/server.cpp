@@ -35,6 +35,8 @@ bool Server::authenticate(int clientfd)
 		total += sent;
 	}
 
+	std::cout << "Nonce sent" << std::endl;
+
 	std::vector<uint8_t> rx_buffer;
 	uint8_t buf[16384];
     
@@ -42,18 +44,34 @@ bool Server::authenticate(int clientfd)
 	total = 0;
 	while (total < crypto_auth_hmacsha256_BYTES) {
 		ssize_t n = recv(clientfd, buf, sizeof(buf), 0);
-		if (n <= 0) {
-			std::cerr << "Failed to recieve AUTH message" << std::endl;
+		if (n < 0) {
+			if (errno == EINTR) continue;
+			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+
+			std::cerr << "recv failed" << std::endl;
+			return false;
+		}
+		if (n == 0) {
+			std::cerr << "Client closed connection early" << std::endl;
 			return false;
 		}
 		
 		total += n;
-		rx_buffer.insert(rx_buffer.end(), std::begin(buf), std::end(buf));
+		rx_buffer.insert(rx_buffer.end(), buf, buf + n);
 	}
     
 	if (total <= 0) return false;
 
-	if (rx_buffer.size() < 4 || std::memcmp(rx_buffer.data(), "AUTH", 4) != 0) {
+	constexpr size_t AUTH_LEN = 4;
+	constexpr size_t TAG_LEN = crypto_auth_hmacsha256_BYTES;
+
+	if (rx_buffer.size() != AUTH_LEN + TAG_LEN) {
+		std::cerr << std::to_string(rx_buffer.size()) << std::endl;
+		std::cerr << "Auth message is not of expected length" << std::endl;
+		return false;
+	}
+
+	if (std::memcmp(rx_buffer.data(), "AUTH", AUTH_LEN) != 0) {
 		std::string message = "400 EXPECTED AUTH\n";
 		const char* data_ptr = message.c_str();
 
@@ -69,15 +87,26 @@ bool Server::authenticate(int clientfd)
 
 		return false;
 	}
-    
-    const size_t OFFSET = 5; // index past the protocol command
-    std::vector<uint8_t> rx_auth_tag;
-    std::copy_n(rx_buffer.begin() + OFFSET, rx_buffer.size(), rx_auth_tag.begin()); 
+   	
+	std::cout << "auth tag recv success" << std::endl;
+
+	std::vector<uint8_t> rx_auth_tag;
+	rx_auth_tag.insert(
+    	rx_auth_tag.end(),
+    	rx_buffer.begin() + AUTH_LEN,
+    	rx_buffer.end()
+	);
 
 	if (!rx_auth_tag.empty() && rx_auth_tag.back() == '\n') {
-		rx_auth_tag.pop_back();
+    	rx_auth_tag.pop_back();
 	}
-    
+
+	std::cout << "checkpoint 1" << std::endl;
+	
+	for (uint8_t b : rx_auth_tag)
+    	printf("%02x", b);
+	printf("\n");
+
     if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK)) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
@@ -95,7 +124,11 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
+	std::cout << "checkpoint 2" << std::endl;
+
     storage_manager.crypto_transit.derive_session_key(SESSION_KEY, TAK);
+
+	std::cout << "session key derivation success" << std::endl;
     
 	std::string message = "200 AUTH OK\n";
     storage_manager.crypto_transit.encrypted_string_send(
@@ -381,7 +414,7 @@ void Server::client_loop(int clientfd)
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (state.command == DEFAULT) {
-			std::cout << "assembling protocol message" << std::endl;
+			//std::cout << "assembling protocol message" << std::endl;
 		
             // TODO - possible bug: if we are in default mode and receive a chunk that
             // contains a partial protocol header (not \n terminated), i think we will
