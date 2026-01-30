@@ -3,8 +3,8 @@
 Server::Server()
 {
 	key_manager.load_or_gen_mdk(MDK);
-	key_manager.derive_key(MDK, FEK, fek_context, fek_subkey_id);
-	key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id);
+	key_manager.derive_key(MDK, FEK, fek_context, fek_subkey_id, false);
+	key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id, true);
 }
 
 void Server::set_timeout(int clientfd)
@@ -127,6 +127,10 @@ bool Server::authenticate(int clientfd)
 	std::cout << "checkpoint 2" << std::endl;
 
     storage_manager.crypto_transit.derive_session_key(SESSION_KEY, TAK);
+
+	for (uint8_t b : SESSION_KEY)
+    	printf("%02x", b);
+	printf("\n");
 
 	std::cout << "session key derivation success" << std::endl;
     
@@ -434,7 +438,7 @@ void Server::client_loop(int clientfd)
 
 				// send response
                 // TODO - encrypted_string_send return value should be a bool so we can easily error check
-                storage_manager.crypto_transit.encrypted_string_send(
+				storage_manager.crypto_transit.encrypted_string_send(
 					response, 
 					[&](const uint8_t* data, size_t len) {
 						writer.write(data, len);

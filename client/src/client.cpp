@@ -3,6 +3,10 @@
 Client::Client()
 {
     crypto_transit.derive_session_key(session_key);
+	
+	for (uint8_t b : session_key)
+    	printf("%02x", b);
+	printf("\n");
 }
 
 void Client::send_binary(std::filesystem::path filepath, int sock)
@@ -90,6 +94,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	}
 	// LIST command format: LIST
 	else if (cmd == "LIST") {
+		std::cout << "Sending LIST command" << std::endl;
+
 		data = "LIST\n";
 
         crypto_transit.encrypted_string_send(
@@ -263,9 +269,14 @@ void Client::handle_server_msg(ServerState& state, int sock)
         */
 
         std::vector<uint8_t> plaintext_buf;
-        recv_encrypted_msg(sock, session_key, plaintext_buf);
+        bool msg_ok = recv_encrypted_msg(sock, session_key, plaintext_buf);
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
+		if (!msg_ok) {
+			state.connected = false;
+			break;
+		}
+
 		// assemble protocol messages from server
 		if (state.command == DEFAULT) {
 		    while (true) {
@@ -287,12 +298,14 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			}
 			
 			case DEFAULT: {
-				for (uint8_t c : plaintext_buf) {
-					std::cout << c << " ";
+				if (!plaintext_buf.empty()) {
+					for (uint8_t c : plaintext_buf) {
+						std::cout << c;
+					}
+					std::cout << std::endl;
 				}
-				std::cout << std::endl;
+				break;
 			}
-
 			default: {
 				break;
 			}

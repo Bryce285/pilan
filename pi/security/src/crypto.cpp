@@ -117,7 +117,7 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf, const uint8_t* tak)
 {
     crypto_kdf_derive_from_key(
             key_buf,
-            sizeof(key_buf),
+            crypto_kdf_KEYBYTES,
             1,
             "FILEXFER",
             tak

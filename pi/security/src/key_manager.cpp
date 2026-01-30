@@ -43,10 +43,11 @@ void KeyManager::TMP_write_tak(uint8_t* tak)
 	out_file.close();
 }
 
-void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id)
+// TODO - is_tak is for testing
+void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak)
 {
     // TODO - error handling here
 	crypto_kdf_derive_from_key(key_out, crypto_kdf_KEYBYTES, subkey_id, context.data(), mdk);
-
-	TMP_write_tak(key_out);
+	
+	if (is_tak) TMP_write_tak(key_out);
 }

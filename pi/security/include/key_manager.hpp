@@ -15,7 +15,7 @@ class KeyManager
 
         void load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES]);
 
-		void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id);
+		void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
         const std::filesystem::path MDK_PATH = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/mdk.txt";
