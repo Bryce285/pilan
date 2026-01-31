@@ -202,9 +202,18 @@ bool Client::recv_all(int sock, uint8_t* buf, size_t len) {
 
     while (total < len) {
         ssize_t recvd = recv(sock, buf + total, len - total, 0);
-        if (recvd <= 0) {
+        if (recvd == 0) {
+			std::cerr << "Server closed connection" << std::endl;
             return false;
         }
+		if (recvd < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
+
+			perror("recv");
+			return false;
+		}
         total += recvd;
     }
 
@@ -215,23 +224,27 @@ bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchach
 {
     uint32_t len_net;
     if (!recv_all(sock, reinterpret_cast<uint8_t*>(&len_net), sizeof(len_net))) {
-        return false;
+        std::cerr << "recv_all len failed" << std::endl;
+		return false;
     }
 
     uint32_t ciphertext_len = ntohl(len_net);
 
     if (ciphertext_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
-        return false;
+        std::cerr << "ciphertext too small" << std::endl;
+		return false;
     }
 
     uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
     if (!recv_all(sock, nonce, sizeof(nonce))) {
-        return false;
+        std::cerr << "recv_all nonce failed" << std::endl;
+		return false;
     }
 
     std::vector<uint8_t> ciphertext(ciphertext_len);
     if (!recv_all(sock, ciphertext.data(), ciphertext_len)) {
-        return false;
+        std::cerr << "recv_all ciphertext failed" << std::endl;
+		return false;
     }
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
@@ -273,6 +286,7 @@ void Client::handle_server_msg(ServerState& state, int sock)
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (!msg_ok) {
+			std::cout << "message not ok" << std::endl;
 			state.connected = false;
 			break;
 		}

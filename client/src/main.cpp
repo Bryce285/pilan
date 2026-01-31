@@ -97,6 +97,8 @@ int main() {
 
 		// parse and send command to server
 		client.handle_cmd(state, cmd, sock);
+		
+		std::cout << "cmd handled" << std::endl;
 
 		// handle server response
 		client.handle_server_msg(state, sock);

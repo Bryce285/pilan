@@ -133,7 +133,8 @@ bool Server::authenticate(int clientfd)
 	printf("\n");
 
 	std::cout << "session key derivation success" << std::endl;
-    
+   	
+	/* 
 	std::string message = "200 AUTH OK\n";
     storage_manager.crypto_transit.encrypted_string_send(
 		message, 
@@ -142,6 +143,7 @@ bool Server::authenticate(int clientfd)
 		}, 
 		SESSION_KEY
 	);
+	*/
 
 	return true;
 }
@@ -250,6 +252,8 @@ void Server::delete_file(ClientState& state, int clientfd)
 
 std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
 {
+	std::cout << "Entered message parsing function" << std::endl;
+
 	std::string line(
             reinterpret_cast<const char*>(state.rx_buffer.data()),
             pos
@@ -342,9 +346,18 @@ bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
 
     while (total < len) {
         ssize_t recvd = recv(sock, buf + total, len - total, 0);
-        if (recvd <= 0) {
+        if (recvd == 0) {
+			std::cerr << "Client closed connection" << std::endl;
             return false;
         }
+		if (recvd < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
+
+			perror("recv");
+			return false;
+		}
         total += recvd;
     }
 
@@ -392,7 +405,8 @@ void Server::client_loop(int clientfd)
 	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
 	
 	while (state.connected) {
-			
+		//std::cout << "outer loop" << std::endl;	
+		
 		// recieve data from the client
 		/*n = recv(clientfd, buf, sizeof(buf), 0);
 
@@ -414,12 +428,19 @@ void Server::client_loop(int clientfd)
 		if (n > 0) state.rx_buffer.append(buf, n);*/
         
         std::vector<uint8_t> plaintext_buf;
-        recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
+        bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
+		if (!msg_ok) {
+			std::cout << "message not ok" << std::endl;
+			state.connected = false;
+			break;
+		}
+
+		if (state.rx_buffer.size() > 0)
+			std::cout << "rx_buffer size: " << state.rx_buffer.size() << std::endl;
+
 		if (state.command == DEFAULT) {
-			//std::cout << "assembling protocol message" << std::endl;
-		
             // TODO - possible bug: if we are in default mode and receive a chunk that
             // contains a partial protocol header (not \n terminated), i think we will
             // exit out of the client loop instead of looping back to receive another
@@ -427,7 +448,9 @@ void Server::client_loop(int clientfd)
 
 			// assemble protocol messages
 			while (true) {
-                auto it = std::find(state.rx_buffer.begin(),
+				//std::cout << "inner loop" << std::endl;
+                
+				auto it = std::find(state.rx_buffer.begin(),
                                     state.rx_buffer.end(),
                                     static_cast<uint8_t>('\n'));
                 if (it == state.rx_buffer.end())
