@@ -1,4 +1,6 @@
 ### TODO
+* get downloads working
+* fix all warnings (ESPECIALLY VLAs)
 * secure memory with memzero and mlock
 * clean up error handling; make sure in cases of error exceptions are always thrown
 * clean up code in general and polish
