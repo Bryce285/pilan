@@ -17,6 +17,16 @@ add_executable(server
     security/src/key_manager.cpp
 )
 
+target_compile_options(server PRIVATE
+    -Wvla
+    -fstack-protector-strong
+	-Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
+)
+
 target_include_directories(server PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/../shared/include

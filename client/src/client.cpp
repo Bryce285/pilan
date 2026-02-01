@@ -3,10 +3,16 @@
 Client::Client()
 {
     crypto_transit.derive_session_key(session_key);
-	
-	for (uint8_t b : session_key)
-    	printf("%02x", b);
-	printf("\n");
+
+	auto dump = [](const char* label, const uint8_t* b, size_t n) {
+    	std::cerr << label << ": ";
+    	for (size_t i = 0; i < n; i++)
+        	std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)b[i];
+    	std::cerr << std::dec << "\n";
+	};
+
+	dump("session key", session_key,
+    	crypto_aead_xchacha20poly1305_ietf_KEYBYTES);
 }
 
 void Client::send_binary(std::filesystem::path filepath, int sock)
@@ -248,6 +254,17 @@ bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchach
     }
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
+	
+	auto dump = [](const char* label, const uint8_t* b, size_t n) {
+    	std::cerr << label << ": ";
+    	for (size_t i = 0; i < n; i++)
+        	std::cerr << std::hex << (int)b[i] << " ";
+    	std::cerr << std::dec << "\n";
+	};
+
+	dump("nonce (send)", nonce, 24);
+	dump("ciphertext (send)", ciphertext.data(), ciphertext_len);
+	dump("session key @ decrypt", session_key, 32);
 
     crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
 

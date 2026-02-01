@@ -38,17 +38,17 @@ class Server
 		const int AUTH_TIMEOUT = 30;
 
         KeyManager key_manager;
-        uint8_t MDK[crypto_kdf_KEYBYTES];
+        std::array<uint8_t, crypto_kdf_KEYBYTES> MDK;
 
         std::string fek_context = "file_encryption_v1";
         uint64_t fek_subkey_id = 1;
-        uint8_t FEK[crypto_kdf_KEYBYTES];
+        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
 
         std::string tak_context = "transfer_auth_v1";
-        uint64_t tak_subkey_id = 2;
-        uint8_t TAK[crypto_kdf_KEYBYTES]; 
-
-        uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
+        uint64_t tak_subkey_id = 2; 
+        std::array<uint8_t, crypto_kdf_KEYBYTES> TAK;
+ 
+        std::array<uint8_t, crypto_kdf_KEYBYTES> SESSION_KEY;
 		
 		ServerStorageManager::StorageConfig config {
 			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 

@@ -48,7 +48,7 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf)
 
 	crypto_kdf_derive_from_key(
 			key_buf,
-			crypto_kdf_KEYBYTES,
+			crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
 			1,
 			"FILEXFER",
 			tak
@@ -106,7 +106,7 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len
 	if (rc != 0) {
 		// TODO - drop packet and disconnect client
 		sodium_memzero(plaintext.data(), plaintext.size());
-		std::cerr << "auth failed" << std::endl;
+		std::cerr << "message decryption failed" << std::endl;
 	}
 
 	plaintext.resize(plaintext_len);

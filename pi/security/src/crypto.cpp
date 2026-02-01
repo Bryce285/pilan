@@ -15,35 +15,26 @@ crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_encrypt_init(int 
 
 void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly1305_state& state, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
 {
-    unsigned long long ciphertext_len;
-    uint8_t ciphertext[plaintext_len + crypto_secretstream_xchacha20poly1305_ABYTES];
-    
-    if (!FINAL_CHUNK) {
-        crypto_secretstream_xchacha20poly1305_push (
-                &state,
-                ciphertext,
-                &ciphertext_len,
-                plaintext,
-                plaintext_len,
-                nullptr,
-                0,
-                0
-            );
-    }
-    else {
-        crypto_secretstream_xchacha20poly1305_push (
-                &state,
-                ciphertext,
-                &ciphertext_len,
-                plaintext,
-                plaintext_len,
-                nullptr,
-                0,
-                crypto_secretstream_xchacha20poly1305_TAG_FINAL
-            );
-    }
+    unsigned long long ciphertext_len = 0;
 
-    write(fd_out, ciphertext, ciphertext_len);
+    std::vector<uint8_t> ciphertext(plaintext_len + crypto_secretstream_xchacha20poly1305_ABYTES);
+
+    const uint8_t tag = FINAL_CHUNK
+        ? crypto_secretstream_xchacha20poly1305_TAG_FINAL
+        : 0;
+
+    crypto_secretstream_xchacha20poly1305_push(
+        &state,
+        ciphertext.data(),
+        &ciphertext_len,
+        plaintext,
+        plaintext_len,
+        nullptr,
+        0,
+        tag
+    );
+
+    write(fd_out, ciphertext.data(), ciphertext_len);
 }
 
 crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int fd_in, const uint8_t* fek)
@@ -66,7 +57,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
     uint8_t plaintext[CHUNK_SIZE];
     
     unsigned long long plaintext_len;
-    const size_t CIPHERTEXT_LEN = CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
+    constexpr size_t CIPHERTEXT_LEN = CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
     uint8_t ciphertext[CIPHERTEXT_LEN];
     uint8_t tag;
     
@@ -78,7 +69,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
                     &plaintext_len,
                     &tag,
                     ciphertext,
-                    CIPHERTEXT_LEN,
+                    n,
                     nullptr,
                     0
                 ) != 0) {
@@ -127,14 +118,23 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf, const uint8_t* tak)
 // we recieve decrypted file data in chunks from the decrypt_chunk function, we then call this function on each decrypted chunk, and send the output to the client 
 void CryptoInTransit::encrypt_message(const uint8_t* plaintext, size_t plaintext_len, DataSink on_message_ready, uint8_t* session_key)
 {
-    uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+	auto dump = [](const char* label, const uint8_t* b, size_t n) {
+    	std::cerr << label << ": ";
+    	for (size_t i = 0; i < n; i++)
+        	std::cerr << std::hex << (int)b[i] << " ";
+    	std::cerr << std::dec << "\n";
+	};
+    
+	uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
     randombytes_buf(nonce, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 
     unsigned long long ciphertext_len;
-    uint8_t ciphertext[plaintext_len + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+    std::vector<uint8_t> ciphertext(plaintext_len + crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    crypto_aead_xchacha20poly1305_ietf_encrypt(
-            ciphertext,
+    dump("session key @ encrypt", session_key, 32);
+
+	crypto_aead_xchacha20poly1305_ietf_encrypt(
+            ciphertext.data(),
             &ciphertext_len,
             plaintext,
             plaintext_len,
@@ -153,9 +153,21 @@ void CryptoInTransit::encrypt_message(const uint8_t* plaintext, size_t plaintext
 
 	uint32_t net_len = htonl(ciphertext_len);
 	
-    on_message_ready(reinterpret_cast<const uint8_t*>(&net_len), sizeof(net_len));
-    on_message_ready(nonce, sizeof(nonce));
-    on_message_ready(ciphertext, ciphertext_len);
+	std::vector<uint8_t> frame;
+	frame.reserve(sizeof(net_len) + sizeof(nonce) + ciphertext_len);
+
+	frame.insert(frame.end(),
+				reinterpret_cast<uint8_t*>(&net_len),
+				reinterpret_cast<uint8_t*>(&net_len) + sizeof(net_len));
+
+	frame.insert(frame.end(), nonce, nonce + sizeof(nonce));
+	frame.insert(frame.end(), ciphertext.begin(), ciphertext.begin() + ciphertext_len);
+
+	on_message_ready(frame.data(), frame.size());
+
+
+	dump("nonce (send)", nonce, 24);
+	dump("ciphertext (send)", ciphertext.data(), ciphertext_len);
 }
 
 void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len, std::vector<uint8_t>& plaintext_out, const uint8_t* session_key, uint8_t* nonce)

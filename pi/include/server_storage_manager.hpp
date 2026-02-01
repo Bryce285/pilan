@@ -56,7 +56,13 @@ class ServerStorageManager
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
         
-		explicit ServerStorageManager(const StorageConfig& config, uint8_t FEK[crypto_kdf_KEYBYTES], uint8_t SESSION_KEY[crypto_kdf_KEYBYTES]);	
+		explicit ServerStorageManager(const StorageConfig& cfg, std::array<uint8_t, crypto_kdf_KEYBYTES>& fek, std::array<uint8_t, crypto_kdf_KEYBYTES>& session_key)
+			: config(cfg), FEK(fek), SESSION_KEY(session_key) 
+		{
+			std::cerr << "SESSION_KEY after ctor: ";
+			for (auto b : SESSION_KEY) std::cerr << std::hex << int(b) << " ";
+			std::cerr << std::dec << std::endl;
+		};	
 		
 		UploadHandle start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);
@@ -70,11 +76,11 @@ class ServerStorageManager
 		void stream_file(std::string& name, StreamWriter& writer);
 
 	private:
-        const size_t HASH_SIZE = crypto_generichash_BYTES;
 		StorageConfig config;
-
-        uint8_t FEK[crypto_kdf_KEYBYTES];
-        uint8_t SESSION_KEY[crypto_kdf_KEYBYTES];
+		
+		// TODO - assert session_key is non-zero before first use in this object
+        std::array<uint8_t, crypto_kdf_KEYBYTES>& SESSION_KEY;
+        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
 		
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);

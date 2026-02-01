@@ -2,14 +2,6 @@
 
 using json = nlohmann::json;
 
-ServerStorageManager::ServerStorageManager(const ServerStorageManager::StorageConfig& config, uint8_t FEK[crypto_kdf_KEYBYTES], uint8_t SESSION_KEY[crypto_kdf_KEYBYTES]) 
-{
-	this->config = config;
-	
-	std::copy(FEK, FEK + crypto_kdf_KEYBYTES, this->FEK);
-	std::copy(SESSION_KEY, SESSION_KEY + crypto_kdf_KEYBYTES, this->SESSION_KEY);
-}
-
 uint64_t ServerStorageManager::unix_timestamp_ms()
 {
 	using namespace std::chrono;
@@ -54,11 +46,11 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
 	handle.bytes_written = 0;
 	handle.active = true;
 
-    if (crypto_generichash_init(&handle.hash_state, nullptr, 0, HASH_SIZE) != 0) {
+    if (crypto_generichash_init(&handle.hash_state, nullptr, 0, crypto_generichash_BYTES) != 0) {
         std::cerr << "hash init failed" << std::endl;
     }
 
-    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK);
+    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK.data());
 
 	return handle;	
 }
@@ -84,9 +76,9 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	fsync(handle.fd);
 	close(handle.fd);
 	
-	uint8_t hash[HASH_SIZE];
+	uint8_t hash[crypto_generichash_BYTES];
 
-    if (crypto_generichash_final(&handle.hash_state, hash, HASH_SIZE) != 0) {
+    if (crypto_generichash_final(&handle.hash_state, hash, crypto_generichash_BYTES) != 0) {
         std::cerr << "Could not finalize hash" << std::endl;
     }
 
@@ -97,13 +89,15 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 		std::cerr << "Failed to open " << handle.meta_path.string() << std::endl;
 	}
 	
-    char hex[(HASH_SIZE * 2) + 1];
+	constexpr size_t HASH_SIZE_HEX = (crypto_generichash_BYTES * 2) + 1;
+
+    char hex[HASH_SIZE_HEX];
 
 	// write name, size, hash, and creation timestamp to metadata file
 	json metadata;
 	metadata["name"] = handle.final_path.filename();
 	metadata["size_bytes"] = handle.expected_size;
-	metadata["sha256_hex"] = sodium_bin2hex(hex, sizeof(hex), hash, HASH_SIZE);
+	metadata["sha256_hex"] = sodium_bin2hex(hex, sizeof(hex), hash, crypto_generichash_BYTES);
 	metadata["created_at"] = std::to_string(unix_timestamp_ms());
 
 	outFile << metadata;
@@ -225,7 +219,7 @@ void ServerStorageManager::data_to_send(const uint8_t* data, size_t len, StreamW
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len); 
 		}, 
-		SESSION_KEY
+		SESSION_KEY.data()
 	);
 }
 
@@ -241,7 +235,7 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		throw std::runtime_error("File not found");
 	}
     
-    crypto_secretstream_xchacha20poly1305_state decrypt_state = crypto_rest.file_decrypt_init(fd, FEK);
+    crypto_secretstream_xchacha20poly1305_state decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.data());
 
     crypto_rest.decrypt_chunk(
 		fd, 

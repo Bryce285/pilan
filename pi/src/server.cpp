@@ -2,9 +2,9 @@
 
 Server::Server()
 {
-	key_manager.load_or_gen_mdk(MDK);
-	key_manager.derive_key(MDK, FEK, fek_context, fek_subkey_id, false);
-	key_manager.derive_key(MDK, TAK, tak_context, tak_subkey_id, true);
+	key_manager.load_or_gen_mdk(MDK.data());
+	key_manager.derive_key(MDK.data(), FEK.data(), fek_context, fek_subkey_id, false);
+	key_manager.derive_key(MDK.data(), TAK.data(), tak_context, tak_subkey_id, true);
 }
 
 void Server::set_timeout(int clientfd)
@@ -107,7 +107,7 @@ bool Server::authenticate(int clientfd)
     	printf("%02x", b);
 	printf("\n");
 
-    if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK)) {
+    if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK.data())) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		
@@ -126,11 +126,17 @@ bool Server::authenticate(int clientfd)
 
 	std::cout << "checkpoint 2" << std::endl;
 
-    storage_manager.crypto_transit.derive_session_key(SESSION_KEY, TAK);
+    storage_manager.crypto_transit.derive_session_key(SESSION_KEY.data(), TAK.data());
+	
+	auto dump = [](const char* label, const uint8_t* b, size_t n) {
+    	std::cerr << label << ": ";
+    	for (size_t i = 0; i < n; i++)
+        	std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)b[i];
+    	std::cerr << std::dec << "\n";
+	};
 
-	for (uint8_t b : SESSION_KEY)
-    	printf("%02x", b);
-	printf("\n");
+	dump("session key", SESSION_KEY.data(),
+    	crypto_aead_xchacha20poly1305_ietf_KEYBYTES);
 
 	std::cout << "session key derivation success" << std::endl;
    	
@@ -190,7 +196,7 @@ void Server::download_file(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY
+		SESSION_KEY.data()
 	);
 
 	try {
@@ -223,7 +229,7 @@ void Server::list_files(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY
+		SESSION_KEY.data()
 	);
 
 	std::cout << "Files list sent" << std::endl;
@@ -244,7 +250,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY
+		SESSION_KEY.data()
 	);
 
 	state.command = DEFAULT;
@@ -428,7 +434,7 @@ void Server::client_loop(int clientfd)
 		if (n > 0) state.rx_buffer.append(buf, n);*/
         
         std::vector<uint8_t> plaintext_buf;
-        bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY, plaintext_buf);
+        bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY.data(), plaintext_buf);
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (!msg_ok) {
@@ -466,7 +472,7 @@ void Server::client_loop(int clientfd)
 					[&](const uint8_t* data, size_t len) {
 						writer.write(data, len);
 					}, 
-					SESSION_KEY
+					SESSION_KEY.data()
 				);
 
 				if (response == "200 BYE\n") {
