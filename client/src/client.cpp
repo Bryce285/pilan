@@ -182,25 +182,36 @@ void Client::parse_msg(ServerState& state, size_t pos)
 	}
 }
 
-bool Client::download_file(ServerState& state)
+void Client::download_file(ServerState& state)
 {
-	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
+    size_t to_write =
+        std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
-	if (to_write > 0) {
-		// TODO - might need to change the data type of write_chunk data arg to account for max possible size of rx_buffer
-		storage_manager.write_chunk(state.cur_download_handle, state.rx_buffer.data(), to_write);
-		state.in_bytes_remaining -= to_write;
-		state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + to_write);
-	}
-				
-	if (state.in_bytes_remaining == 0) {
-		storage_manager.commit_download(state.cur_download_handle);
-		state.command = DEFAULT;
-		state.connected = false;
-		return true;
+	std::cout << "to_write: " << to_write << std::endl;
+
+    if (to_write == 0) {
+        std::cout << "Returning from download_file() because to_write is 0" << std::endl;
+		return;
 	}
 
-	return false;
+    storage_manager.write_chunk(
+        state.cur_download_handle,
+        state.rx_buffer.data(),
+        to_write
+    );
+
+    state.in_bytes_remaining -= to_write;
+    state.rx_buffer.erase(
+        state.rx_buffer.begin(),
+        state.rx_buffer.begin() + to_write
+    );
+	
+	std::cout << "Bytes remaining: " << state.in_bytes_remaining << std::endl;
+
+    if (state.in_bytes_remaining == 0) {
+        storage_manager.commit_download(state.cur_download_handle);
+        state.command = DEFAULT;
+    }
 }
 
 bool Client::recv_all(int sock, uint8_t* buf, size_t len) {
@@ -273,41 +284,31 @@ bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchach
 
 void Client::handle_server_msg(ServerState& state, int sock)
 {
-	//uint8_t buf[4096];
-
 	while (state.connected) {
-        
-        /*
-		ssize_t n = recv(sock, buf, sizeof(buf), 0);
-
-		if (n == 0) {
-			state.connected = false;
-			break;
+		
+		if (state.command == DOWNLOAD) {
+			while (state.in_bytes_remaining > 0 &&
+					!state.rx_buffer.empty()) {
+				download_file(state);
+			}
 		}
+	
+		
+        std::vector<uint8_t> plaintext_buf;
 
-		if (n < 0) {
-			if (errno != EWOULDBLOCK && errno != EAGAIN) {
-				std::cerr << "recv failed" << std::endl;
+		if (state.command != DOWNLOAD || state.rx_buffer.empty()) {
+        	bool msg_ok = recv_encrypted_msg(sock, session_key, plaintext_buf);
+		
+			if (!msg_ok) {
+				std::cout << "message not ok" << std::endl;
 				state.connected = false;
 				break;
 			}
-			
-			continue;
+        	
+			state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		}
-
-		if (n > 0) state.rx_buffer.append(buf, n);
-        */
-
-        std::vector<uint8_t> plaintext_buf;
-        bool msg_ok = recv_encrypted_msg(sock, session_key, plaintext_buf);
-        state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
-		if (!msg_ok) {
-			std::cout << "message not ok" << std::endl;
-			state.connected = false;
-			break;
-		}
-
+		// TODO - we should be parsing commands even when the state is not default
 		// assemble protocol messages from server
 		if (state.command == DEFAULT) {
 		    while (true) {
@@ -322,23 +323,12 @@ void Client::handle_server_msg(ServerState& state, int sock)
             }
         }
 
-		switch (state.command) {
-			case DOWNLOAD: {
-				if (!download_file(state)) continue;
-				break;
-			}
-			
-			case DEFAULT: {
-				if (!plaintext_buf.empty()) {
-					for (uint8_t c : plaintext_buf) {
-						std::cout << c;
-					}
-					std::cout << std::endl;
+		if (state.command == DEFAULT) {
+			if (!plaintext_buf.empty()) {
+				for (uint8_t c : plaintext_buf) {
+					std::cout << c;
 				}
-				break;
-			}
-			default: {
-				break;
+				std::cout << std::endl;
 			}
 		}
 	}

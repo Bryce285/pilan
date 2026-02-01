@@ -227,9 +227,12 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
 	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
+	
+	/*
 	FileInfo file_info = get_file_info(name);
 	uint64_t size = file_info.size_bytes;
-	
+	*/
+
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
 		throw std::runtime_error("File not found");

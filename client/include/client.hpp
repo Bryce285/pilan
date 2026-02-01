@@ -61,5 +61,5 @@ class Client
 		void send_binary(std::filesystem::path filepath, int sock);
 		void send_header(std::string header, int sock);
 		void parse_msg(ServerState& state, size_t pos);
-		bool download_file(ServerState& state);
+		void download_file(ServerState& state);
 };

@@ -186,8 +186,10 @@ void Server::download_file(ClientState& state, int clientfd)
 {
     SocketStreamWriter writer(clientfd);
 
-	std::filesystem::path path = config.files_dir / state.ofilename;
-	uint64_t size = std::filesystem::file_size(path);
+	// TODO - make sure this filename is sanitized	
+	//std::filesystem::path path = config.files_dir / state.ofilename;
+	ServerStorageManager::FileInfo file_info = storage_manager.get_file_info(state.ofilename);
+	uint64_t size = file_info.size_bytes;
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
