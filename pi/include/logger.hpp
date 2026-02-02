@@ -40,7 +40,7 @@ class Logger
 			ERROR,
 		};
 
-		enum class Event {
+		enum class LogEvent {
 			SERVICE_START,					// INFO
 			SERVICE_STOP,					// INFO
 			CLIENT_CONNECT,					// INFO
@@ -58,7 +58,9 @@ class Logger
 			RECOVERY_INCOMPLETE_UPLOAD		// WARN
 		};
 		
-		// TODO - put all events in a map with their level
+		std::unordered_map<LogEvent, LogLevel> level_map;
+		
+		Logger();
 
 		// move corrupt / incomplete logs to crash.log	
 		void scan_logs();	
@@ -70,20 +72,25 @@ class Logger
 		void log_event(Event event, std::initializer_list<LogField> fields);
 
 		// write logs in logs_buffer to a log file on disk
-		bool flush_logs(std::vector<Log> logs);
+		bool flush_logs();
 
 	private:
 		std::filesystem::path logs_path = "/home/bryce/projects/offlinePiFS/pi/data/logs";
 		
 		// max size of an individual log file
-		constexpr size_t log_size;
+		constexpr size_t log_size = 1024;
 
 		// number of log files that will be created before log rotation
-		constexpr size_t rotate_threshold;
+		constexpr size_t rotate_threshold = 10;
+
+		constexpr size_t flush_threshold = 25;
 		
 		// for buffering in memory
 		struct Log {
-			
+			size_t timestamp = 0;
+			LogLevel level;
+			LogEvent event;
+			std::initializer_list<LogField> fields;
 		};
 		
 		// for holding buffered logs
