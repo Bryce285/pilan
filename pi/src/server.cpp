@@ -101,12 +101,6 @@ bool Server::authenticate(int clientfd)
     	rx_auth_tag.pop_back();
 	}
 
-	std::cout << "checkpoint 1" << std::endl;
-	
-	for (uint8_t b : rx_auth_tag)
-    	printf("%02x", b);
-	printf("\n");
-
     if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK.data())) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
@@ -124,19 +118,7 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
-	std::cout << "checkpoint 2" << std::endl;
-
     storage_manager.crypto_transit.derive_session_key(SESSION_KEY.data(), TAK.data());
-	
-	auto dump = [](const char* label, const uint8_t* b, size_t n) {
-    	std::cerr << label << ": ";
-    	for (size_t i = 0; i < n; i++)
-        	std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)b[i];
-    	std::cerr << std::dec << "\n";
-	};
-
-	dump("session key", SESSION_KEY.data(),
-    	crypto_aead_xchacha20poly1305_ietf_KEYBYTES);
 
 	std::cout << "session key derivation success" << std::endl;
    	
@@ -444,9 +426,6 @@ void Server::client_loop(int clientfd)
 			state.connected = false;
 			break;
 		}
-
-		if (state.rx_buffer.size() > 0)
-			std::cout << "rx_buffer size: " << state.rx_buffer.size() << std::endl;
 
 		if (state.command == DEFAULT) {
             // TODO - possible bug: if we are in default mode and receive a chunk that

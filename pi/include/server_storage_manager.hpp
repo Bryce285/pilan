@@ -57,12 +57,7 @@ class ServerStorageManager
         CryptoInTransit crypto_transit;
         
 		explicit ServerStorageManager(const StorageConfig& cfg, std::array<uint8_t, crypto_kdf_KEYBYTES>& fek, std::array<uint8_t, crypto_kdf_KEYBYTES>& session_key)
-			: config(cfg), FEK(fek), SESSION_KEY(session_key) 
-		{
-			std::cerr << "SESSION_KEY after ctor: ";
-			for (auto b : SESSION_KEY) std::cerr << std::hex << int(b) << " ";
-			std::cerr << std::dec << std::endl;
-		};	
+			: config(cfg), FEK(fek), SESSION_KEY(session_key) {};	
 		
 		UploadHandle start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);

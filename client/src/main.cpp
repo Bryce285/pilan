@@ -54,10 +54,6 @@ int main() {
 	uint8_t auth_tag[crypto_auth_hmacsha256_BYTES];
 	crypto_transit.get_auth_tag(auth_tag, server_nonce);
 	
-	for (uint8_t b : auth_tag)
-    	printf("%02x", b);
-	printf("\n");
-
 	std::vector<uint8_t> auth_msg;
 	auth_msg.reserve(auth_keyword.size() + sizeof(auth_tag));
 
