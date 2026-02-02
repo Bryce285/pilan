@@ -141,8 +141,12 @@ void CryptoInTransit::encrypt_message(const uint8_t* plaintext, size_t plaintext
      *  [nonce (24 bytes)]
      *  [ciphertext + auth tag]
      */
+	
+	if (ciphertext_len > UINT32_MAX) {
+		throw std::runtime_error("Ciphertext chunk overflows 32 bit integer");
+	}
 
-	uint32_t net_len = htonl(ciphertext_len);
+	uint32_t net_len = htonl(static_cast<uint32_t>(ciphertext_len));
 	
 	std::vector<uint8_t> frame;
 	frame.reserve(sizeof(net_len) + sizeof(nonce) + ciphertext_len);

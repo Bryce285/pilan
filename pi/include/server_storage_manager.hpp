@@ -72,10 +72,11 @@ class ServerStorageManager
 
 	private:
 		StorageConfig config;
-		
+				
+        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
+
 		// TODO - assert session_key is non-zero before first use in this object
         std::array<uint8_t, crypto_kdf_KEYBYTES>& SESSION_KEY;
-        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
 		
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);

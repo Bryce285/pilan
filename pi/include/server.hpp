@@ -102,7 +102,7 @@ class Server
 		void list_files(ClientState& state, int clientfd);
 		void delete_file(ClientState& state, int clientfd);
 		
-		std::string parse_msg(ClientState& state, size_t pos, int clientfd);
+		std::string parse_msg(ClientState& state, size_t pos);
 
 		void client_loop(int clientfd);
 };

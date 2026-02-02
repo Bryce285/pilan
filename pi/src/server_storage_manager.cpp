@@ -216,8 +216,8 @@ void ServerStorageManager::data_to_send(const uint8_t* data, size_t len, StreamW
     crypto_transit.encrypt_message(
 		data,
 		len, 
-		[&](const uint8_t* data, size_t len) {
-			writer.write(data, len); 
+		[&](const uint8_t* data_l, size_t len_l) {
+			writer.write(data_l, len_l); 
 		}, 
 		SESSION_KEY.data()
 	);
@@ -243,8 +243,8 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
     crypto_rest.decrypt_chunk(
 		fd, 
 		decrypt_state, 
-		[&](const uint8_t* data, size_t len, StreamWriter& writer) {
-			data_to_send(data, len, writer); 
+		[&](const uint8_t* data, size_t len, StreamWriter& writer_l) {
+			data_to_send(data, len, writer_l); 
 		}, 
 		writer
 	);

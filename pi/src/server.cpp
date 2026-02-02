@@ -24,15 +24,15 @@ bool Server::authenticate(int clientfd)
     uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
 	storage_manager.crypto_transit.get_nonce(nonce);
 	
-    size_t total = 0;
-	while (total < sizeof(nonce)) {
-		ssize_t sent = send(clientfd, nonce + total, sizeof(nonce) - total, 0);
+    size_t total_nonce = 0;
+	while (total_nonce < sizeof(nonce)) {
+		ssize_t sent = send(clientfd, nonce + total_nonce, sizeof(nonce) - total_nonce, 0);
 		if (sent <= 0) {
 			std::cerr << "Nonce failed to send" << std::endl;
             return false;
 		}
 
-		total += sent;
+		total_nonce += sent;
 	}
 
 	std::cout << "Nonce sent" << std::endl;
@@ -41,9 +41,9 @@ bool Server::authenticate(int clientfd)
 	uint8_t buf[16384];
     
     // receive auth tag from client
-	total = 0;
-	while (total < crypto_auth_hmacsha256_BYTES) {
-		ssize_t n = recv(clientfd, buf, sizeof(buf), 0);
+	size_t total_tag = 0;
+	while (total_tag < crypto_auth_hmacsha256_BYTES) {
+		ssize_t n = recv(clientfd, buf, sizeof(buf), 0); // TODO need to factor in the totals here like in the previous loop?
 		if (n < 0) {
 			if (errno == EINTR) continue;
 			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
@@ -56,11 +56,11 @@ bool Server::authenticate(int clientfd)
 			return false;
 		}
 		
-		total += n;
+		total_tag += n;
 		rx_buffer.insert(rx_buffer.end(), buf, buf + n);
 	}
     
-	if (total <= 0) return false;
+	if (total_tag <= 0) return false;
 
 	constexpr size_t AUTH_LEN = 4;
 	constexpr size_t TAG_LEN = crypto_auth_hmacsha256_BYTES;
@@ -75,14 +75,14 @@ bool Server::authenticate(int clientfd)
 		std::string message = "400 EXPECTED AUTH\n";
 		const char* data_ptr = message.c_str();
 
-		total = 0;
-		while (total < message.size()) {
-			ssize_t sent = send(clientfd, data_ptr + total, message.size() - total, 0);
+		size_t total_expect_auth = 0;
+		while (total_expect_auth < message.size()) {
+			ssize_t sent = send(clientfd, data_ptr + total_expect_auth, message.size() - total_expect_auth, 0);
 			if (sent <= 0) {
 				std::cerr << "Message failed to send: " << message << std::endl;
 			}
 
-			total += sent;
+			total_expect_auth += sent;
 		}
 
 		return false;
@@ -105,14 +105,14 @@ bool Server::authenticate(int clientfd)
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		
-		size_t total = 0;
-		while (total < message.size()) {
-			ssize_t sent = send(clientfd, data_ptr + total, message.size() - total, 0);
+		size_t total_auth_fail = 0;
+		while (total_auth_fail < message.size()) {
+			ssize_t sent = send(clientfd, data_ptr + total_auth_fail, message.size() - total_auth_fail, 0);
 			if (sent <= 0) {
 				std::cerr << "Message failed to send: " << message << std::endl;
 			}
 
-			total += sent;
+			total_auth_fail += sent;
 		}
 
 		return false;
@@ -202,7 +202,7 @@ void Server::list_files(ClientState& state, int clientfd)
 	std::vector<ServerStorageManager::FileInfo> files = storage_manager.list_files();
 
 	std::string message;
-	for (int i = 0; i < files.size(); i++) {
+	for (size_t i = 0; i < files.size(); i++) {
 		message.append(files[i].name + "\n");
 	}
 	
@@ -240,7 +240,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 	state.command = DEFAULT;
 }
 
-std::string Server::parse_msg(ClientState& state, size_t pos, int clientfd)
+std::string Server::parse_msg(ClientState& state, size_t pos)
 {
 	std::cout << "Entered message parsing function" << std::endl;
 
@@ -387,35 +387,11 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 void Server::client_loop(int clientfd)
 {	
     SocketStreamWriter writer(clientfd);
-
 	ClientState state;
-	uint8_t buf[16384];
-	ssize_t n = 0;
 	
 	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
 	
 	while (state.connected) {
-		//std::cout << "outer loop" << std::endl;	
-		
-		// recieve data from the client
-		/*n = recv(clientfd, buf, sizeof(buf), 0);
-
-		if (n == 0) {
-			state.connected = false;
-			break;
-		}
-		
-		if (n < 0) {
-			if (errno != EWOULDBLOCK && errno != EAGAIN) {
-				std::cerr << "recv failed" << std::endl;
-				state.connected = false;
-				break;
-			}
-
-			continue;
-		}
-
-		if (n > 0) state.rx_buffer.append(buf, n);*/
         
         std::vector<uint8_t> plaintext_buf;
         bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY.data(), plaintext_buf);
@@ -444,7 +420,7 @@ void Server::client_loop(int clientfd)
                     break;
 
                 size_t pos = std::distance(state.rx_buffer.begin(), it);
-				std::string response = parse_msg(state, pos, clientfd);
+				std::string response = parse_msg(state, pos);
 
 				// send response
                 // TODO - encrypted_string_send return value should be a bool so we can easily error check

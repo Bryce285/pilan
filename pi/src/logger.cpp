@@ -54,5 +54,5 @@ void Logger::log_event(Logger::LogEvent event, std::initializer_list<Logger::Log
 
 bool Logger::flush_logs()
 {
-
+	
 }
