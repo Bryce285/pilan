@@ -60,10 +60,10 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 	randombytes_buf(nonce, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 
 	unsigned long long ciphertext_len;
-	uint8_t ciphertext[plaintext_len + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+	std::vector<uint8_t> ciphertext(plaintext_len + crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
 	crypto_aead_xchacha20poly1305_ietf_encrypt(
-			ciphertext,
+			ciphertext.data(),
 			&ciphertext_len,
 			plaintext,
 			plaintext_len,
@@ -73,11 +73,23 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 			session_key
 		);
 	
-	uint32_t net_len = htonl(ciphertext_len);
+	if (ciphertext_len > UINT32_MAX) {
+		throw std::runtime_error("Ciphertext chunk overflows 32 bit integer");
+	}
 
-	on_message_ready(reinterpret_cast<uint8_t*>(&net_len), sizeof(uint32_t));
-	on_message_ready(nonce, sizeof(nonce));
-	on_message_ready(ciphertext, ciphertext_len);
+	uint32_t net_len = htonl(static_cast<uint32_t>(ciphertext_len));
+	
+	std::vector<uint8_t> frame;
+	frame.reserve(sizeof(net_len) + sizeof(nonce) + ciphertext_len);
+	
+	frame.insert(frame.end(),
+				reinterpret_cast<uint8_t*>(&net_len),
+				reinterpret_cast<uint8_t*>(&net_len) + sizeof(net_len));
+
+	frame.insert(frame.end(), nonce, nonce + sizeof(nonce));
+	frame.insert(frame.end(), ciphertext.begin(), ciphertext.begin() + ciphertext_len);
+
+	on_message_ready(frame.data(), frame.size());
 }
 
 void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce)

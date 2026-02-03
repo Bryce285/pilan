@@ -60,8 +60,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	    
         crypto_transit.encrypted_string_send(
 			data, 
-			[&](const uint8_t* data, size_t len) {
-				writer.write(data, len); 
+			[&](const uint8_t* upload_cmd_data, size_t upload_cmd_len) {
+				writer.write(upload_cmd_data, upload_cmd_len); 
 			},
 			session_key
 		);
@@ -82,8 +82,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
         crypto_transit.encrypted_string_send(
 			data, 
-			[&](const uint8_t* data, size_t len) {
-				writer.write(data, len); 
+			[&](const uint8_t* download_cmd_data, size_t download_cmd_len) {
+				writer.write(download_cmd_data, download_cmd_len); 
 			}, 
 			session_key
 		);
@@ -96,8 +96,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
         crypto_transit.encrypted_string_send(
 			data, 
-			[&](const uint8_t* data, size_t len) {
-				writer.write(data, len); 
+			[&](const uint8_t* list_cmd_data, size_t list_cmd_len) {
+				writer.write(list_cmd_data, list_cmd_len); 
 			}, 
 			session_key
 		);
@@ -116,8 +116,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	
         crypto_transit.encrypted_string_send(
 			data, 
-			[&](const uint8_t* data, size_t len) {
-				writer.write(data, len); 
+			[&](const uint8_t* delete_cmd_data, size_t delete_cmd_len) {
+				writer.write(delete_cmd_data, delete_cmd_len); 
 			}, 
 			session_key
 		);
@@ -128,8 +128,8 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 
         crypto_transit.encrypted_string_send(
 			data, 
-			[&](const uint8_t* data, size_t len) {
-				writer.write(data, len); 
+			[&](const uint8_t* quit_cmd_data, size_t quit_cmd_len) {
+				writer.write(quit_cmd_data, quit_cmd_len); 
 			}, 
 			session_key
 		);
@@ -227,7 +227,7 @@ bool Client::recv_all(int sock, uint8_t* buf, size_t len) {
     return true;
 }
 
-bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
+bool Client::recv_encrypted_msg(int sock, uint8_t s_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out)
 {
     uint32_t len_net;
     if (!recv_all(sock, reinterpret_cast<uint8_t*>(&len_net), sizeof(len_net))) {
@@ -256,7 +256,7 @@ bool Client::recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchach
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
+    crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, s_key, nonce);
 
 	return true;
 }

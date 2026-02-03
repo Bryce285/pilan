@@ -1,8 +1,8 @@
 #include "client_storage_manager.hpp"
 
-ClientStorageManager::ClientStorageManager(const StorageConfig& config)
+ClientStorageManager::ClientStorageManager(const StorageConfig& cfg)
 {
-	this->config = config;
+	this->config = cfg;
 }
 
 // TODO - this method is shared between the client and server storage managers

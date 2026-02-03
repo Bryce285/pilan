@@ -15,6 +15,16 @@ add_executable(client
 	security/src/crypto.cpp	
 )
 
+target_compile_options(client PRIVATE
+	-Wvla
+	-fstack-protector-strong
+	-Wall
+	-Wextra
+	-Wpedantic
+	-Wshadow
+	-Wconversion
+)
+
 target_include_directories(client PRIVATE
 	${PROJECT_SOURCE_DIR}/include
 	${PROJECT_SOURCE_DIR}/../shared/include
