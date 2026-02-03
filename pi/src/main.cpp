@@ -89,7 +89,6 @@ int main()
 		
 		char ip[INET_ADDRSTRLEN];
 		inet_ntop(AF_INET, &client_addr.sin_addr, ip, sizeof(ip));
-		//uint16_t port = ntohs(client_addr.sin_port);
 	
 		ClientConnection connection {
 			clientfd,

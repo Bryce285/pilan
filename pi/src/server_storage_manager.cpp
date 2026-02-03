@@ -82,8 +82,6 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
         std::cerr << "Could not finalize hash" << std::endl;
     }
 
-	// TODO - eventually use SQLite to store metadata
-	
 	std::ofstream outFile(handle.meta_path);
 	if (!outFile.is_open()) {
 		std::cerr << "Failed to open " << handle.meta_path.string() << std::endl;
