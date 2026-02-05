@@ -2,6 +2,14 @@
 
 Logger::Logger()
 {
+	logfd_ = ::open(
+        log_path_,
+        O_WRONLY | O_CREAT | O_APPEND,
+        0644
+    );
+
+    log_cur_bytes_ = 0;
+
 	level_map[SERVICE_START] = "INFO";
 	level_map[SERVICE_STOP] = "INFO";
 	level_map[CLIENT_CONNECT] = "INFO";
@@ -21,12 +29,31 @@ Logger::Logger()
 
 void Logger::log_rotate()
 {
-	// TODO - implement this
+	if (!log_path_ || log_max_bytes_ == 0) return;
+    if (log_cur_bytes_ < log_max_bytes_) return;
+
+    ::close(logfd_);
+
+    // Best-effort rotate
+    char rotated[256];
+    snprintf(rotated, sizeof(rotated), "%s.1", log_path_);
+
+    ::rename(g_log_path, rotated);
+
+    logfd_ = ::open(
+        log_path_,
+        O_WRONLY | O_CREAT | O_TRUNC,
+        0644
+    );
+
+    log_cur_bytes_ = 0;
 }
 
 void Logger::log_event(Logger::LogEvent event)
 {	
 	if (logfd_ < 0) return;
+	
+	log_rotate();
 
 	const char* level = level_map[event];
 	const char* event_str = event_to_string(event);
@@ -44,6 +71,9 @@ void Logger::log_event(Logger::LogEvent event)
 			);
 
 	if (n > 0) {
-		::write(logfd_, buf, (size_t)n);
+		ssize_t written = ::write(logfd_, buf, (size_t)n);
+		if (written > 0) {
+			log_cur_bytes += (size_t)written;
+		}
 	}
 }

@@ -59,10 +59,9 @@ class Logger
 		void log_event(Event event);
 
 	private:
-		// TODO - figure out values for these
-		const char* log_path_;
-		constexpr size_t log_max_bytes;
-		constexpr size_t log_cur_bytes;
+		const char* log_path_ = "/home/bryce/projects/offlinePiFS/pi/data/logs";
+		constexpr size_t log_max_bytes_ = 10240; // 10mb
+		size_t log_cur_bytes_ = 0;
 
 		int logfd_ = -1;
 		
