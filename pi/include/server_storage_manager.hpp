@@ -39,9 +39,10 @@ class ServerStorageManager
 
 			size_t expected_size;
 			size_t bytes_written;
-
+			
+			// TODO - mlock all state objects that contain secrets
 			crypto_generichash_state hash_state;
-            crypto_secretstream_xchacha20poly1305_state encrypt_state;
+            std::unique_ptr<SecureSecretstreamState> encrypt_state;
 
 			bool active;
 		};
@@ -57,7 +58,10 @@ class ServerStorageManager
         CryptoInTransit crypto_transit;
         
 		explicit ServerStorageManager(const StorageConfig& cfg, std::array<uint8_t, crypto_kdf_KEYBYTES>& fek, std::array<uint8_t, crypto_kdf_KEYBYTES>& session_key)
-			: config(cfg), FEK(fek), SESSION_KEY(session_key) {};	
+			: config(cfg), FEK(fek), SESSION_KEY(session_key) 
+		{
+			sodium_mlock(FEK.data(), crypto_kdf_KEYBYTES);
+		};	
 		
 		UploadHandle start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);

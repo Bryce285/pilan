@@ -2,6 +2,7 @@
 
 // TODO - ERROR HANDLING
 
+// mlock key_buf anytime this function is used
 void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
     if (std::filesystem::exists(TAK_PATH)) {
@@ -35,15 +36,16 @@ void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
     // out_buf should be sized with the constant crypto_auth_hmacsha256_BYTES
     
 	uint8_t tak[crypto_kdf_KEYBYTES];
-	load_tak(tak);
+	load_tak(tak); // don't need to mlock tak here because it only exists for this function call
     
 	crypto_auth_hmacsha256(out_buf, server_nonce, sizeof(server_nonce), tak);
 }
 
+// mlock key_buf anytime this function is used
 void CryptoInTransit::derive_session_key(uint8_t* key_buf)
 {
 	uint8_t tak[crypto_kdf_KEYBYTES];
-    load_tak(tak);
+    load_tak(tak); // don't need to mlock tak here because it only exists for this function call
 
 	crypto_kdf_derive_from_key(
 			key_buf,

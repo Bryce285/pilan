@@ -1,12 +1,5 @@
 #include "server.hpp"
 
-Server::Server()
-{
-	key_manager.load_or_gen_mdk(MDK.data());
-	key_manager.derive_key(MDK.data(), FEK.data(), fek_context, fek_subkey_id, false);
-	key_manager.derive_key(MDK.data(), TAK.data(), tak_context, tak_subkey_id, true);
-}
-
 void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
@@ -118,7 +111,7 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
-    storage_manager.crypto_transit.derive_session_key(SESSION_KEY.data(), TAK.data());
+	SESSION_KEY = std::make_unique<SecureKey>(SESSION, TAK->key_buf);		
 
 	std::cout << "session key derivation success" << std::endl;
    	
@@ -152,6 +145,8 @@ bool Server::upload_file(ClientState& state)
         }
 
 		state.in_bytes_remaining -= to_write;
+
+		sodium_memzero(state.rx_buffer.data(), to_write);
 		state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + to_write);
 
 		if (state.in_bytes_remaining == 0) {
@@ -246,7 +241,8 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
             reinterpret_cast<const char*>(state.rx_buffer.data()),
             pos
     );
-
+	
+	sodium_memzero(state.rx_buffer.data(), pos + 1);
 	state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + pos + 1);
 
 	if (!line.empty() && line.back() == '\r') {

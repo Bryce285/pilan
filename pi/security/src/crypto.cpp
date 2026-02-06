@@ -2,18 +2,27 @@
 
 // TODO - make sure that full error handling and secure failure are implemented
 
-crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_encrypt_init(int fd_out, const uint8_t* fek)
+std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_encrypt_init(int fd_out, const uint8_t* fek)
 {
-    crypto_secretstream_xchacha20poly1305_state state;
+    auto stream = std::make_unique<SecureSecretstreamState>();
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
+	
+	// TODO - check for nullptr return and handle error when this function is called
+    if (crypto_secretstream_xchacha20poly1305_init_push(
+			&stream->state, 
+			header, 
+			fek) != 0) {
+		return nullptr;
+	}
 
-    crypto_secretstream_xchacha20poly1305_init_push(&state, header, fek);
-
-    write(fd_out, header, sizeof(header));
-    return state;
+    if (::write(fd_out, header, sizeof(header)) == -1) {
+		throw std::runtime_error("Error in crypto.cpp:18: ::write() failed");
+	}
+	
+    return stream;
 }
 
-void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly1305_state& state, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
+bool CryptoAtRest::encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamState> stream, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
 {
     unsigned long long ciphertext_len = 0;
 
@@ -23,8 +32,8 @@ void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly13
         ? crypto_secretstream_xchacha20poly1305_TAG_FINAL
         : 0;
 
-    crypto_secretstream_xchacha20poly1305_push(
-        &state,
+    if (crypto_secretstream_xchacha20poly1305_push(
+        &stream->state,
         ciphertext.data(),
         &ciphertext_len,
         plaintext,
@@ -32,26 +41,37 @@ void CryptoAtRest::encrypt_chunk(int fd_out, crypto_secretstream_xchacha20poly13
         nullptr,
         0,
         tag
-    );
+    ) != 0) {
+		return false;	
+	}
 
-    write(fd_out, ciphertext.data(), ciphertext_len);
+    if (::write(fd_out, ciphertext.data(), ciphertext_len) == -1) {
+		throw std::runtime_error("Error in crypto.cpp:48: ::write() failed");
+	}
 }
 
-crypto_secretstream_xchacha20poly1305_state CryptoAtRest::file_decrypt_init(int fd_in, const uint8_t* fek)
+std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_in, const uint8_t* fek)
 {
-    crypto_secretstream_xchacha20poly1305_state state;
+    auto stream = std::make_unique<SecureSecretstreamState>();
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
 
-    read(fd_in, header, sizeof(header));
+    if (::read(fd_in, header, sizeof(header)) == -1) {
+		throw std::runtime_error("Error in crypto.cpp:58 ::read() failed");
+	}
 
-    if (crypto_secretstream_xchacha20poly1305_init_pull(&state, header, fek) != 0) {
-        std::cerr << "Failed to initialize secretstream pull" << std::endl; 
+	// TODO - check for nullptr return anytime this function is called
+    if (crypto_secretstream_xchacha20poly1305_init_pull(
+			&stream->state, 
+			header, 
+			fek) != 0) {
+        return nullptr; 
     }
     
     return state;
 }
 
-void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly1305_state& state, PlaintextSink on_chunk_ready, StreamWriter& writer)
+// TODO - check return value of this function
+bool CryptoAtRest::decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState> stream, PlaintextSink on_chunk_ready, StreamWriter& writer)
 {
     // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
     uint8_t plaintext[CHUNK_SIZE];
@@ -64,7 +84,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
     ssize_t n;
     while ((n = read(fd_in, ciphertext, CIPHERTEXT_LEN)) > 0) {
         if (crypto_secretstream_xchacha20poly1305_pull(
-                    &state,
+                    &stream->state,
                     plaintext,
                     &plaintext_len,
                     &tag,
@@ -73,10 +93,10 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
                     nullptr,
                     0
                 ) != 0) {
-            std::cerr << "Failed to pull ciphertext" << std::endl;
-            return;
+       		return false;
         }
-
+		
+		// TODO - check return value of this function?
         on_chunk_ready(plaintext, plaintext_len, writer);
 
         if (tag == crypto_secretstream_xchacha20poly1305_TAG_FINAL) {
@@ -87,6 +107,7 @@ void CryptoAtRest::decrypt_chunk(int fd_in, crypto_secretstream_xchacha20poly130
 
 void CryptoInTransit::get_nonce(uint8_t out_buf[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES])
 {
+	// TODO - check return value of this function?
     randombytes_buf(out_buf, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
 }
 

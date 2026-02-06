@@ -52,8 +52,7 @@ class Client
 		ClientStorageManager storage_manager{config};
         CryptoInTransit crypto_transit;
        	
-		// TODO - USE THIS CONSTANT FOR SIZING ALL SESSION KEYS 
-        uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
+       	auto session_key = std::make_unique<SecureKey>();  
 
         bool recv_all(int sock, uint8_t* buf, size_t len);
         bool recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);

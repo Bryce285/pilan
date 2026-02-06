@@ -30,7 +30,6 @@
 class Server 
 {
 	public:
-		Server();
 		void handle_client(int clientfd);
 
 	private:
@@ -38,17 +37,17 @@ class Server
 		const int AUTH_TIMEOUT = 30;
 
         KeyManager key_manager;
-        std::array<uint8_t, crypto_kdf_KEYBYTES> MDK;
+        auto MDK = std::make_unique<SecureKey>(MASTER_DEVICE);
 
         std::string fek_context = "file_encryption_v1";
         uint64_t fek_subkey_id = 1;
-        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
+        auto FEK = std::make_unique<SecureKey>(FILE_ENCRYPT, MDK->key_buf, fek_context, fek_subkey_id, false);
 
         std::string tak_context = "transfer_auth_v1";
         uint64_t tak_subkey_id = 2; 
-        std::array<uint8_t, crypto_kdf_KEYBYTES> TAK;
+        auto TAK = std::make_unique<SecureKey>(TRANSFER_AUTH, MDK->key_buf, tak_context, tak_subkey_id, true);
  
-        std::array<uint8_t, crypto_kdf_KEYBYTES> SESSION_KEY;
+        std::unique_ptr<SecureKey> SESSION_KEY;
 		
 		ServerStorageManager::StorageConfig config {
 			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 

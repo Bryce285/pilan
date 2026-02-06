@@ -1,5 +1,7 @@
 #include "key_manager.hpp"
 
+// lock memory of key_buf anytime this function is called
+// TODO - make static
 void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
     if (std::filesystem::exists(MDK_PATH)) {
@@ -43,6 +45,8 @@ void KeyManager::TMP_write_tak(uint8_t* tak)
 	out_file.close();
 }
 
+// lock memory of key_out anytime this function is called
+// TODO - make static
 // TODO - is_tak is for testing
 void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak)
 {

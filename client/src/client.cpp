@@ -145,7 +145,8 @@ void Client::parse_msg(ServerState& state, size_t pos)
             reinterpret_cast<const char*>(state.rx_buffer.data()),
             pos
     );
-
+	
+	sodium_memzero(state.rx_buffer.data(), pos + 1);
 	state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + pos + 1);
 
 	if (!line.empty() && line.back() == '\r') {
@@ -191,6 +192,8 @@ void Client::download_file(ServerState& state)
     );
 
     state.in_bytes_remaining -= to_write;
+
+	sodium_memzero(state.rx_buffer.data(), to_write);
     state.rx_buffer.erase(
         state.rx_buffer.begin(),
         state.rx_buffer.begin() + to_write
@@ -272,7 +275,6 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			}
 		}
 	
-		
         std::vector<uint8_t> plaintext_buf;
 
 		if (state.command != DOWNLOAD || state.rx_buffer.empty()) {
