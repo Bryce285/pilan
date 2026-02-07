@@ -13,12 +13,12 @@ class KeyManager
 		const std::string FEK_CONTEXT = "file_encryption_v1";
 		const std::string TAK_CONTEXT = "transport_auth_v1";
 
-        void load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES]);
+        static void load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES]);
 
-		void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak);
+		static void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
-        const std::filesystem::path MDK_PATH = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/mdk.txt";
+        static const std::filesystem::path MDK_PATH = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/mdk.txt";
 		
 		// TODO - this is a temp function for testing
 		void TMP_write_tak(uint8_t* tak);
