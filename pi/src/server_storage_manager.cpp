@@ -38,16 +38,24 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
 	handle.final_path = config.files_dir / name_sanitized;
 	handle.meta_path = config.meta_dir / (name_sanitized + ".json");
 
-	handle.fd = open(handle.tmp_path.c_str(),
+	handle.fd = ::open(handle.tmp_path.c_str(),
 						O_CREAT | O_EXCL | O_WRONLY,
 						0600);
+	
+	if (handle.fd == -1) {
+		throw std::runtime_error("::open() failed");
+	}
 
 	handle.expected_size = size;
 	handle.bytes_written = 0;
 	handle.active = true;
 
-    if (crypto_generichash_init(&handle.hash_state, nullptr, 0, crypto_generichash_BYTES) != 0) {
-        std::cerr << "hash init failed" << std::endl;
+    if (crypto_generichash_init(
+			&handle.hash_state, 
+			nullptr, 
+			0, 
+			crypto_generichash_BYTES) != 0) {
+    	throw std::runtime_error("Hash init failed");
     }
 
     handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK.data());
@@ -59,7 +67,9 @@ void ServerStorageManager::write_chunk(UploadHandle& handle, uint8_t* data, size
 {
 	if (!handle.active) throw std::logic_error("Upload not active");
 
-    crypto_generichash_update(&handle.hash_state, data, len);
+    if (crypto_generichash_update(&handle.hash_state, data, len) != 0) {
+		throw std::runtime_error("Sodium error: hash update failed");
+	}
     crypto_rest.encrypt_chunk(handle.fd, handle.encrypt_state, data, len, final_chunk);
 
 	handle.bytes_written += len;
@@ -71,20 +81,21 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 		throw std::runtime_error("File size mismatch");
 	}
 	
-	rename(handle.tmp_path.c_str(), handle.final_path.c_str());
+	::rename(handle.tmp_path.c_str(), handle.final_path.c_str());
 
-	fsync(handle.fd);
-	close(handle.fd);
+	::fsync(handle.fd);
+	::close(handle.fd);
 	
 	uint8_t hash[crypto_generichash_BYTES];
 
     if (crypto_generichash_final(&handle.hash_state, hash, crypto_generichash_BYTES) != 0) {
-        std::cerr << "Could not finalize hash" << std::endl;
+        throw std::runtime_error("Sodium error: could not finalize hash");
     }
 
 	std::ofstream outFile(handle.meta_path);
 	if (!outFile.is_open()) {
-		std::cerr << "Failed to open " << handle.meta_path.string() << std::endl;
+		std::string error_msg = "Failed to open " + handle.meta_path.string() + "\n";
+		throw std::runtime_error(error_msg);
 	}
 	
 	constexpr size_t HASH_SIZE_HEX = (crypto_generichash_BYTES * 2) + 1;
@@ -101,10 +112,13 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	outFile << metadata;
 	outFile.close();
 
-	int dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
+	int dir_fd = ::open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
-		fsync(dir_fd);
-		close(dir_fd);
+		::fsync(dir_fd);
+		::close(dir_fd);
+	}
+	else if (dir_fd == -1) {
+		std::cerr << "Failed to open file" << std::endl;
 	}
 
 	handle.active = false;
@@ -115,8 +129,8 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 {
 	if (!handle.active) return;
 	
-	close(handle.fd);
-	unlink(handle.tmp_path.c_str());
+	::close(handle.fd);
+	::unlink(handle.tmp_path.c_str());
 
 	handle.active = false;
 }
@@ -163,6 +177,7 @@ std::vector<ServerStorageManager::FileInfo> ServerStorageManager::list_files()
 	return files;
 }
 
+// TODO - when opening files should we throw an error or just print one?
 void ServerStorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
@@ -174,18 +189,23 @@ void ServerStorageManager::delete_file(const std::string& name)
 
 	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
-		fsync(dir_fd);
-		close(dir_fd);
+		::fsync(dir_fd);
+		::close(dir_fd);
+	}
+	else if (dir_fd == -1) {
+		std::cerr << "Failed to open file" << std::endl;
 	}
 	
-	// TODO - add some error handling
 	// delete the file
 	std::filesystem::remove(path_deleting);
 
 	dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (dir_fd >= 0) {
-		fsync(dir_fd);
-		close(dir_fd);
+		::fsync(dir_fd);
+		::close(dir_fd);
+	}
+	else if (dir_fd == -1) {
+		std::cerr << "Failed to open file" << std::endl;
 	}
 
 	// delete metadata
@@ -196,16 +216,16 @@ void ServerStorageManager::delete_file(const std::string& name)
 
 	int meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (meta_dir_fd >= 0) {
-		fsync(meta_dir_fd);
-		close(meta_dir_fd);
+		::fsync(meta_dir_fd);
+		::close(meta_dir_fd);
 	}
 
 	std::filesystem::remove(meta_path_deleting);
 
 	meta_dir_fd = open(config.meta_dir.c_str(), O_DIRECTORY | O_RDONLY);
 	if (meta_dir_fd >= 0) {
-		fsync(meta_dir_fd);
-		close(meta_dir_fd);
+		::fsync(meta_dir_fd);
+		::close(meta_dir_fd);
 	}
 }
 
@@ -231,12 +251,12 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	uint64_t size = file_info.size_bytes;
 	*/
 
-	int fd = open(path.string().c_str(), O_RDONLY);
+	int fd = ::open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {
-		throw std::runtime_error("File not found");
+		throw std::runtime_error("Failed to open file");
 	}
     
-    crypto_secretstream_xchacha20poly1305_state decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.data());
+    std::unique_ptr<SecureSecretstreamState> decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.data());
 
     crypto_rest.decrypt_chunk(
 		fd, 
@@ -249,5 +269,5 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 
 	// close file
 	writer.flush();
-	close(fd);
+	::close(fd);
 }

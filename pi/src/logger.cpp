@@ -34,7 +34,6 @@ void Logger::log_rotate()
 
     ::close(logfd_);
 
-    // Best-effort rotate
     char rotated[256];
     snprintf(rotated, sizeof(rotated), "%s.1", log_path_);
 
