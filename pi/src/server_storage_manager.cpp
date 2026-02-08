@@ -58,7 +58,7 @@ ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std:
     	throw std::runtime_error("Hash init failed");
     }
 
-    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK.data());
+    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK.key_buf);
 
 	return handle;	
 }
@@ -229,15 +229,19 @@ void ServerStorageManager::delete_file(const std::string& name)
 	}
 }
 
-void ServerStorageManager::data_to_send(const uint8_t* data, size_t len, StreamWriter& writer)
+void ServerStorageManager::data_to_send(uint8_t* data, size_t len, StreamWriter& writer)
 {
+	if (!SESSION_KEY) {
+		throw std::logic_error("Session key not initialized");
+	}
+
     crypto_transit.encrypt_message(
 		data,
 		len, 
 		[&](const uint8_t* data_l, size_t len_l) {
 			writer.write(data_l, len_l); 
 		}, 
-		SESSION_KEY.data()
+		SESSION_KEY->key_buf
 	);
 }
 
@@ -256,12 +260,12 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		throw std::runtime_error("Failed to open file");
 	}
     
-    std::unique_ptr<SecureSecretstreamState> decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.data());
+    std::unique_ptr<SecureSecretstreamState> decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.key_buf);
 
     crypto_rest.decrypt_chunk(
 		fd, 
 		decrypt_state, 
-		[&](const uint8_t* data, size_t len, StreamWriter& writer_l) {
+		[&](uint8_t* data, size_t len, StreamWriter& writer_l) {
 			data_to_send(data, len, writer_l); 
 		}, 
 		writer

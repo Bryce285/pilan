@@ -10,21 +10,21 @@ Logger::Logger()
 
     log_cur_bytes_ = 0;
 
-	level_map[SERVICE_START] = "INFO";
-	level_map[SERVICE_STOP] = "INFO";
-	level_map[CLIENT_CONNECT] = "INFO";
-	level_map[CLIENT_AUTH_SUCCESS] = "INFO";
-	level_map[CLIENT_AUTH_FAILURE] = "WARN";
-	level_map[UPLOAD_START] = "INFO";
-	level_map[UPLOAD_COMPLETE] = "INFO";
-	level_map[UPLOAD_FAILURE] = "ERROR";
-	level_map[UPLOAD_ABORT] = "WARN";
-	level_map[DOWNLOAD_START] = "INFO";
-	level_map[DOWNLOAD_COMPLETE] = "INFO";
-	level_map[DOWNLOAD_FAILURE] = "ERROR";
-	level_map[DOWNLOAD_ABORT] = "WARN";
-	level_map[DISK_FULL] = "ERROR";
-	level_map[RECOVERY_INCOMPLETE_UPLOAD] = "WARN";
+	level_map[LogEvent::SERVICE_START] = "INFO";
+	level_map[LogEvent::SERVICE_STOP] = "INFO";
+	level_map[LogEvent::CLIENT_CONNECT] = "INFO";
+	level_map[LogEvent::CLIENT_AUTH_SUCCESS] = "INFO";
+	level_map[LogEvent::CLIENT_AUTH_FAILURE] = "WARN";
+	level_map[LogEvent::UPLOAD_START] = "INFO";
+	level_map[LogEvent::UPLOAD_COMPLETE] = "INFO";
+	level_map[LogEvent::UPLOAD_FAILURE] = "ERROR";
+	level_map[LogEvent::UPLOAD_ABORT] = "WARN";
+	level_map[LogEvent::DOWNLOAD_START] = "INFO";
+	level_map[LogEvent::DOWNLOAD_COMPLETE] = "INFO";
+	level_map[LogEvent::DOWNLOAD_FAILURE] = "ERROR";
+	level_map[LogEvent::DOWNLOAD_ABORT] = "WARN";
+	level_map[LogEvent::DISK_FULL] = "ERROR";
+	level_map[LogEvent::RECOVERY_INCOMPLETE_UPLOAD] = "WARN";
 }
 
 void Logger::log_rotate()
@@ -37,7 +37,7 @@ void Logger::log_rotate()
     char rotated[256];
     snprintf(rotated, sizeof(rotated), "%s.1", log_path_);
 
-    ::rename(g_log_path, rotated);
+    ::rename(log_path_, rotated);
 
     logfd_ = ::open(
         log_path_,
@@ -72,7 +72,7 @@ void Logger::log_event(Logger::LogEvent event)
 	if (n > 0) {
 		ssize_t written = ::write(logfd_, buf, (size_t)n);
 		if (written > 0) {
-			log_cur_bytes += (size_t)written;
+			log_cur_bytes_ += (size_t)written;
 		}
 	}
 }

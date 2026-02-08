@@ -22,7 +22,7 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_encrypt_init(int fd_
     return stream;
 }
 
-void CryptoAtRest::encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamState> stream, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
+void CryptoAtRest::encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamState>& stream, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
 {
     unsigned long long ciphertext_len = 0;
 
@@ -69,10 +69,10 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_
         return nullptr; 
     }
     
-    return state;
+    return stream;
 }
 
-void CryptoAtRest::decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState> stream, PlaintextSink on_chunk_ready, StreamWriter& writer)
+void CryptoAtRest::decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState>& stream, PlaintextSink on_chunk_ready, StreamWriter& writer)
 {
     // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
     uint8_t plaintext[CHUNK_SIZE];
@@ -220,7 +220,7 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len
 
 void CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key)
 {
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(message.data());
+    uint8_t* data = reinterpret_cast<uint8_t*>(message.data());
 	size_t len = std::size(message);
 
     encrypt_message(data, len, on_message_ready, session_key);

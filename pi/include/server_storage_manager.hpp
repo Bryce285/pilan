@@ -12,6 +12,7 @@
 
 #include "stream_writer.hpp"
 #include "crypto.hpp"
+#include "secure_mem.hpp"
 
 #pragma once
 
@@ -57,12 +58,14 @@ class ServerStorageManager
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
         
-		explicit ServerStorageManager(const StorageConfig& cfg, std::array<uint8_t, crypto_kdf_KEYBYTES>& fek, std::array<uint8_t, crypto_kdf_KEYBYTES>& session_key)
-			: config(cfg), FEK(fek), SESSION_KEY(session_key) 
+		explicit ServerStorageManager(const StorageConfig& cfg, SecureKey& fek)
+			: config(cfg), FEK(fek), SESSION_KEY(nullptr) {}	
+	
+		void set_session_key(SecureKey& key)
 		{
-			sodium_mlock(FEK.data(), crypto_kdf_KEYBYTES);
-		};	
-		
+			SESSION_KEY = &key;
+		}
+
 		UploadHandle start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);
 		void commit_upload(UploadHandle& handle);
@@ -77,13 +80,13 @@ class ServerStorageManager
 	private:
 		StorageConfig config;
 				
-        std::array<uint8_t, crypto_kdf_KEYBYTES> FEK;
+        SecureKey& FEK;
 
 		// TODO - assert session_key is non-zero before first use in this object
-        std::array<uint8_t, crypto_kdf_KEYBYTES>& SESSION_KEY;
+        SecureKey* SESSION_KEY;
 		
 		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);
 
-        void data_to_send(const uint8_t* data, size_t len, StreamWriter& writer);
+        void data_to_send(uint8_t* data, size_t len, StreamWriter& writer);
 };

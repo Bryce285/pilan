@@ -24,6 +24,7 @@
 #include "socket_stream_writer.hpp"
 #include "key_manager.hpp"
 #include "crypto.hpp"
+#include "secure_mem.hpp"
 
 #pragma once
 
@@ -37,15 +38,15 @@ class Server
 		const int AUTH_TIMEOUT = 30;
 
         KeyManager key_manager;
-        auto MDK = std::make_unique<SecureKey>(MASTER_DEVICE);
+        std::unique_ptr<SecureKey> MDK = std::make_unique<SecureKey>(KeyType::MASTER_DEVICE);
 
         std::string fek_context = "file_encryption_v1";
         uint64_t fek_subkey_id = 1;
-        auto FEK = std::make_unique<SecureKey>(FILE_ENCRYPT, MDK->key_buf, fek_context, fek_subkey_id, false);
+        std::unique_ptr<SecureKey> FEK = std::make_unique<SecureKey>(KeyType::FILE_ENCRYPT, MDK->key_buf, fek_context, fek_subkey_id, false);
 
         std::string tak_context = "transfer_auth_v1";
         uint64_t tak_subkey_id = 2; 
-        auto TAK = std::make_unique<SecureKey>(TRANSFER_AUTH, MDK->key_buf, tak_context, tak_subkey_id, true);
+        std::unique_ptr<SecureKey> TAK = std::make_unique<SecureKey>(KeyType::TRANSFER_AUTH, MDK->key_buf, tak_context, tak_subkey_id, true);
  
         std::unique_ptr<SecureKey> SESSION_KEY;
 		
@@ -58,8 +59,8 @@ class Server
 			.max_total_size = 10000000000, // 10GB
 			.read_only = false
 		};
-
-		ServerStorageManager storage_manager{config, FEK, SESSION_KEY};
+		
+		ServerStorageManager storage_manager{config, *FEK};
 
 		// TODO - move this inside the state struct
 		ServerStorageManager::UploadHandle cur_upload_handle;

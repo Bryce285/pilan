@@ -17,7 +17,7 @@ enum class KeyType {
 	TRANSFER_AUTH,
 	FILE_ENCRYPT,
 	SESSION
-}
+};
 
 struct SecureSecretstreamState {
     crypto_secretstream_xchacha20poly1305_state state;
@@ -47,7 +47,7 @@ struct SecureKey {
 	
 	// for mdk
     SecureKey(KeyType key_type) {
-		if (key_type != MASTER_DEVICE) {
+		if (key_type != KeyType::MASTER_DEVICE) {
 			throw std::runtime_error("Invalid constructor for given key type");
 		}
 
@@ -60,7 +60,7 @@ struct SecureKey {
 
 	// for tak / fek
     SecureKey(KeyType key_type, uint8_t* mdk, std::string context, uint64_t subkey_id, bool is_tak) {
-		if (key_type != TRANSFER_AUTH && key_type != FILE_ENCRYPT) {
+		if (key_type != KeyType::TRANSFER_AUTH && key_type != KeyType::FILE_ENCRYPT) {
 			throw std::runtime_error("Invalid constructor for given key type");
 		}
 
@@ -73,7 +73,7 @@ struct SecureKey {
 	
 	// for session key
     SecureKey(KeyType key_type, uint8_t* tak) {
-		if (key_type != SESSION) {
+		if (key_type != KeyType::SESSION) {
 			throw std::runtime_error("Invalid constructor for given key type");
 		}
 	

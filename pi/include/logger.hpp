@@ -1,4 +1,11 @@
 #include <filesystem>
+#include <unordered_map>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#pragma once
 
 class Logger
 {
@@ -32,7 +39,7 @@ class Logger
 		Logger();
 		
 		inline const char* event_to_string(LogEvent event) {
-    		switch (lvl) {
+    		switch (event) {
         		case LogEvent::SERVICE_START:  return "SERVICE_START";
         		case LogEvent::SERVICE_STOP:  return "SERVICE_STOP";
         		case LogEvent::CLIENT_CONNECT: return "CLIENT_CONNECT";
@@ -53,14 +60,14 @@ class Logger
 		}	
 
 		// rotate logs
-		bool log_rotate();
+		void log_rotate();
 
 		// create a Log object and buffer in memory with logs_buffer
-		void log_event(Event event);
+		void log_event(LogEvent event);
 
 	private:
 		const char* log_path_ = "/home/bryce/projects/offlinePiFS/pi/data/logs";
-		constexpr size_t log_max_bytes_ = 10240; // 10mb
+		constexpr static size_t log_max_bytes_ = 10240; // 10mb
 		size_t log_cur_bytes_ = 0;
 
 		int logfd_ = -1;

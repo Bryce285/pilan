@@ -94,7 +94,7 @@ bool Server::authenticate(int clientfd)
     	rx_auth_tag.pop_back();
 	}
 
-    if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK.data())) {
+    if (!storage_manager.crypto_transit.verify_auth(rx_auth_tag.data(), nonce, TAK->key_buf)) {
 		std::string message = "401 AUTH FAILED\n";
 		const char* data_ptr = message.c_str();
 		
@@ -111,7 +111,8 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
 
-	SESSION_KEY = std::make_unique<SecureKey>(SESSION, TAK->key_buf);		
+	SESSION_KEY = std::make_unique<SecureKey>(KeyType::SESSION, TAK->key_buf);		
+	storage_manager.set_session_key(*SESSION_KEY);
 
 	std::cout << "session key derivation success" << std::endl;
    	
@@ -173,7 +174,7 @@ void Server::download_file(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY.data()
+		SESSION_KEY->key_buf
 	);
 
 	try {
@@ -206,7 +207,7 @@ void Server::list_files(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY.data()
+		SESSION_KEY->key_buf
 	);
 
 	std::cout << "Files list sent" << std::endl;
@@ -227,7 +228,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
 		}, 
-		SESSION_KEY.data()
+		SESSION_KEY->key_buf
 	);
 
 	state.command = DEFAULT;
@@ -388,7 +389,7 @@ void Server::client_loop(int clientfd)
 	while (state.connected) {
         
         std::vector<uint8_t> plaintext_buf;
-        bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY.data(), plaintext_buf);
+        bool msg_ok = recv_encrypted_msg(clientfd, SESSION_KEY->key_buf, plaintext_buf);
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (!msg_ok) {
@@ -423,7 +424,7 @@ void Server::client_loop(int clientfd)
 					[&](const uint8_t* data, size_t len) {
 						writer.write(data, len);
 					}, 
-					SESSION_KEY.data()
+					SESSION_KEY->key_buf
 				);
 
 				if (response == "200 BYE\n") {
