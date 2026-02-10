@@ -18,6 +18,9 @@ void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
         }
         
         in_file.read(reinterpret_cast<char*>(key_buf), crypto_kdf_KEYBYTES);
+		if (in_file.fail() || in_file.bad()) {
+			throw std::runtime_error("File error: Failed to read transfer authentication key from disk");
+		}
 
         std::streamsize bytes_read = in_file.gcount();
         if (bytes_read != crypto_kdf_KEYBYTES) {
@@ -38,7 +41,13 @@ void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
 	uint8_t tak[crypto_kdf_KEYBYTES];
 	load_tak(tak); // don't need to mlock tak here because it only exists for this function call
     
-	crypto_auth_hmacsha256(out_buf, server_nonce, sizeof(server_nonce), tak);
+	if (crypto_auth_hmacsha256(
+			out_buf, 
+			server_nonce, 
+			sizeof(server_nonce), 
+			tak) != 0) {
+		throw std::runtime_error("Sodium error: failed to generate auth tag");
+	}
 }
 
 // mlock key_buf anytime this function is used
@@ -47,13 +56,15 @@ void CryptoInTransit::derive_session_key(uint8_t* key_buf)
 	uint8_t tak[crypto_kdf_KEYBYTES];
     load_tak(tak); // don't need to mlock tak here because it only exists for this function call
 
-	crypto_kdf_derive_from_key(
+	if (crypto_kdf_derive_from_key(
 			key_buf,
 			crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
 			1,
 			"FILEXFER",
 			tak
-		);
+		) != 0) {
+		throw std::runtime_error("Sodium error: Failed to derive key");
+	}
 }
 
 void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, DataSink on_message_ready, uint8_t* session_key)
@@ -64,7 +75,7 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 	unsigned long long ciphertext_len;
 	std::vector<uint8_t> ciphertext(plaintext_len + crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-	crypto_aead_xchacha20poly1305_ietf_encrypt(
+	if (crypto_aead_xchacha20poly1305_ietf_encrypt(
 			ciphertext.data(),
 			&ciphertext_len,
 			plaintext,
@@ -73,9 +84,13 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 			nullptr,
 			nonce,
 			session_key
-		);
+		) != 0) {
+		sodium_memzero(plaintext, plaintext_len);
+		throw std::runtime_error("Sodium encrypt error");
+	}
 	
 	if (ciphertext_len > UINT32_MAX) {
+		sodium_memzero(plaintext, plaintext_len);
 		throw std::runtime_error("Ciphertext chunk overflows 32 bit integer");
 	}
 
@@ -105,7 +120,7 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len
 	std::vector<uint8_t> plaintext(ciphertext_len);
 	unsigned long long plaintext_len;
 
-	int rc = crypto_aead_xchacha20poly1305_ietf_decrypt(
+	if (crypto_aead_xchacha20poly1305_ietf_decrypt(
 			plaintext.data(),
 			&plaintext_len,
 			nullptr,
@@ -114,12 +129,9 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len
 			nullptr, 0,
 			nonce,
 			session_key
-		);
-
-	if (rc != 0) {
-		// TODO - drop packet and disconnect client
+		) != 0) {
 		sodium_memzero(plaintext.data(), plaintext.size());
-		std::cerr << "message decryption failed" << std::endl;
+		throw std::runtime_error("Sodium decrypt error");
 	}
 
 	plaintext.resize(plaintext_len);

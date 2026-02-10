@@ -63,7 +63,7 @@ void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string co
 			subkey_id, 
 			context.data(), 
 			mdk) != 0) {
-		throw std::runtime_error("Key error: Failed to derive key");
+		throw std::runtime_error("Sodium error: Failed to derive key");
 	}
 	
 	if (is_tak) TMP_write_tak(key_out);

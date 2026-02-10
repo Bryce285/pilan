@@ -37,6 +37,10 @@ ClientStorageManager::DownloadHandle ClientStorageManager::start_download(const 
 						O_CREAT | O_EXCL | O_WRONLY,
 						0600);
 
+	if (handle.fd == -1) {
+		throw std::runtime_error("::open() failed");
+	}
+
 	handle.expected_size = size;
 	handle.bytes_written = 0;
 	handle.active = true;
@@ -58,10 +62,10 @@ void ClientStorageManager::commit_download(DownloadHandle& handle)
 		throw std::runtime_error("File size mismatch");
 	}
 
-	rename(handle.tmp_path.c_str(), handle.final_path.c_str());
+	::rename(handle.tmp_path.c_str(), handle.final_path.c_str());
 
-	fsync(handle.fd);
-	close(handle.fd);
+	::fsync(handle.fd);
+	::close(handle.fd);
 
 	handle.active = false;
 }
@@ -70,8 +74,8 @@ void ClientStorageManager::abort_download(DownloadHandle& handle)
 {
 	if (!handle.active) return;
 
-	close(handle.fd);
-	unlink(handle.tmp_path.c_str());
+	::close(handle.fd);
+	::unlink(handle.tmp_path.c_str());
 
 	handle.active = false;
 }
@@ -130,5 +134,5 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 
 	// close file
 	writer.flush();
-	close(fd);
+	::close(fd);
 }
