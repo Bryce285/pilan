@@ -13,6 +13,7 @@
 #include "client_storage_manager.hpp"
 #include "socket_stream_writer.hpp"
 #include "crypto.hpp"
+#include "secure_mem.hpp"
 
 #pragma once
 
@@ -38,8 +39,6 @@ class Client
 			ClientStorageManager::DownloadHandle cur_download_handle;
 		};
         
-        Client();
-
 		void handle_cmd(ServerState& state, std::string cmd, int sock);
 		void handle_server_msg(ServerState& state, int sock);
 
@@ -52,7 +51,7 @@ class Client
 		ClientStorageManager storage_manager{config};
         CryptoInTransit crypto_transit;
        	
-       	auto session_key = std::make_unique<SecureKey>();  
+       	std::unique_ptr<SecureKey> session_key = std::make_unique<SecureKey>();  
 
         bool recv_all(int sock, uint8_t* buf, size_t len);
         bool recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);

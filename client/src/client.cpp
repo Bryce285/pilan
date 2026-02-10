@@ -1,10 +1,5 @@
 #include "client.hpp"
 
-Client::Client()
-{
-    crypto_transit.derive_session_key(session_key);
-}
-
 void Client::send_binary(std::filesystem::path filepath, int sock)
 {
 	std::ifstream inFile(filepath, std::ios::binary);
@@ -63,11 +58,11 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 			[&](const uint8_t* upload_cmd_data, size_t upload_cmd_len) {
 				writer.write(upload_cmd_data, upload_cmd_len); 
 			},
-			session_key
+			session_key->key_buf
 		);
 		
 		std::string filepath_str = filepath.string();
-		storage_manager.stream_file(filepath_str, writer, session_key);
+		storage_manager.stream_file(filepath_str, writer, session_key->key_buf);
 	}
 
 	// DOWNLOAD command format: DOWNLOAD <filename>
@@ -85,7 +80,7 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 			[&](const uint8_t* download_cmd_data, size_t download_cmd_len) {
 				writer.write(download_cmd_data, download_cmd_len); 
 			}, 
-			session_key
+			session_key->key_buf
 		);
 	}
 	// LIST command format: LIST
@@ -99,7 +94,7 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 			[&](const uint8_t* list_cmd_data, size_t list_cmd_len) {
 				writer.write(list_cmd_data, list_cmd_len); 
 			}, 
-			session_key
+			session_key->key_buf
 		);
 	}
 	// DELETE command format: DELETE <filename>
@@ -119,7 +114,7 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 			[&](const uint8_t* delete_cmd_data, size_t delete_cmd_len) {
 				writer.write(delete_cmd_data, delete_cmd_len); 
 			}, 
-			session_key
+			session_key->key_buf
 		);
 	}
 	else if (cmd == "QUIT") {
@@ -131,7 +126,7 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 			[&](const uint8_t* quit_cmd_data, size_t quit_cmd_len) {
 				writer.write(quit_cmd_data, quit_cmd_len); 
 			}, 
-			session_key
+			session_key->key_buf
 		);
 	}
 	else {
@@ -278,7 +273,7 @@ void Client::handle_server_msg(ServerState& state, int sock)
         std::vector<uint8_t> plaintext_buf;
 
 		if (state.command != DOWNLOAD || state.rx_buffer.empty()) {
-        	bool msg_ok = recv_encrypted_msg(sock, session_key, plaintext_buf);
+        	bool msg_ok = recv_encrypted_msg(sock, session_key->key_buf, plaintext_buf);
 		
 			if (!msg_ok) {
 				std::cout << "message not ok" << std::endl;
