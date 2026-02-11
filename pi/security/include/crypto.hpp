@@ -27,7 +27,9 @@ class CryptoAtRest
         void encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamState>& state, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK);
 
         std::unique_ptr<SecureSecretstreamState> file_decrypt_init(int fd_in, const uint8_t* fek);
-        void decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState>& state, PlaintextSink on_chunk_ready, StreamWriter& writer);
+        
+		static void read_exact(int fd, void *buf, size_t len);
+		void decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState>& state, PlaintextSink on_chunk_ready, StreamWriter& writer);
 };
 
 class CryptoInTransit

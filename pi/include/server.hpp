@@ -62,8 +62,7 @@ class Server
 		
 		ServerStorageManager storage_manager{config, *FEK};
 
-		// TODO - move this inside the state struct
-		ServerStorageManager::UploadHandle cur_upload_handle;
+		std::unique_ptr<ServerStorageManager::UploadHandle> cur_upload_handle;
 
 		enum Command 
 		{

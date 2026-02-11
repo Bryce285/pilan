@@ -7,6 +7,11 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_encrypt_init(int fd_
     auto stream = std::make_unique<SecureSecretstreamState>();
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
 	
+	for (int i = 0; i < 4; ++i)
+    	printf("%02x ", fek[i]);
+	printf("\n");
+
+
 	// TODO - check for nullptr return and handle error when this function is called
     if (crypto_secretstream_xchacha20poly1305_init_push(
 			&stream->state, 
@@ -24,32 +29,76 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_encrypt_init(int fd_
 
 void CryptoAtRest::encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamState>& stream, uint8_t* plaintext, size_t plaintext_len, const bool FINAL_CHUNK)
 {
-    unsigned long long ciphertext_len = 0;
+    // 1. Allocate ciphertext buffer
+    std::vector<uint8_t> ciphertext(
+        plaintext_len + crypto_secretstream_xchacha20poly1305_ABYTES
+    );
 
-    std::vector<uint8_t> ciphertext(plaintext_len + crypto_secretstream_xchacha20poly1305_ABYTES);
+    unsigned long long ciphertext_len = 0;
 
     const uint8_t tag = FINAL_CHUNK
         ? crypto_secretstream_xchacha20poly1305_TAG_FINAL
         : 0;
+	
+	if (FINAL_CHUNK) {
+		std::cout << "Final chunk" << std::endl;
+	}
 
+    // 2. Encrypt
     if (crypto_secretstream_xchacha20poly1305_push(
-        &stream->state,
-        ciphertext.data(),
-        &ciphertext_len,
-        plaintext,
-        plaintext_len,
-        nullptr,
-        0,
-        tag
-    ) != 0) {
-		sodium_memzero(plaintext, plaintext_len);
-		throw std::runtime_error("Sodium error: push failed");	
-	}
+            &stream->state,
+            ciphertext.data(),
+            &ciphertext_len,
+            plaintext,
+            plaintext_len,
+            nullptr,
+            0,
+            tag
+        ) != 0) {
 
-    if (::write(fd_out, ciphertext.data(), ciphertext_len) == -1) {
-		sodium_memzero(plaintext, plaintext_len);
-		throw std::runtime_error("Error in crypto.cpp:48: ::write() failed");
-	}
+        sodium_memzero(plaintext, plaintext_len);
+        throw std::runtime_error("Sodium error: push failed");
+    }
+
+    // 3. Write ciphertext length (framing)
+    uint32_t clen_u32 = static_cast<uint32_t>(ciphertext_len);
+
+    if (::write(fd_out, &clen_u32, sizeof(clen_u32)) != sizeof(clen_u32)) {
+        sodium_memzero(plaintext, plaintext_len);
+        throw std::runtime_error("write() failed (ciphertext length)");
+    }
+
+    // 4. Write ciphertext
+    size_t total = 0;
+    while (total < ciphertext_len) {
+        ssize_t n = ::write(
+            fd_out,
+            ciphertext.data() + total,
+            ciphertext_len - total
+        );
+        if (n <= 0) {
+            sodium_memzero(plaintext, plaintext_len);
+            throw std::runtime_error("write() failed (ciphertext)");
+        }
+        total += n;
+    }
+}
+
+void CryptoAtRest::read_exact(int fd, void *buf, size_t len)
+{
+    uint8_t *p = static_cast<uint8_t *>(buf);
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t n = ::read(fd, p + total, len - total);
+        if (n == 0) {
+            throw std::runtime_error("Unexpected EOF");
+        }
+        if (n < 0) {
+            throw std::runtime_error("read() failed");
+        }
+        total += n;
+    }
 }
 
 std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_in, const uint8_t* fek)
@@ -57,9 +106,12 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_
     auto stream = std::make_unique<SecureSecretstreamState>();
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
 
-    if (::read(fd_in, header, sizeof(header)) == -1) {
-		throw std::runtime_error("Error in crypto.cpp:58 ::read() failed");
-	}
+	read_exact(fd_in, header, sizeof(header));
+	
+	for (int i = 0; i < 4; ++i)
+    	printf("%02x ", fek[i]);
+	printf("\n");
+
 
 	// TODO - check for nullptr return anytime this function is called
     if (crypto_secretstream_xchacha20poly1305_init_pull(
@@ -74,32 +126,53 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_
 
 void CryptoAtRest::decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamState>& stream, PlaintextSink on_chunk_ready, StreamWriter& writer)
 {
-    // TODO - should we just set the plaintext buffer to CHUNK_SIZE or should we use the same strategy that we use in the decrypt_message function?
-    uint8_t plaintext[CHUNK_SIZE];
-    
-    unsigned long long plaintext_len;
-    constexpr size_t CIPHERTEXT_LEN = CHUNK_SIZE + crypto_secretstream_xchacha20poly1305_ABYTES;
-    uint8_t ciphertext[CIPHERTEXT_LEN];
-    uint8_t tag;
-    
-    ssize_t n;
-    while ((n = ::read(fd_in, ciphertext, CIPHERTEXT_LEN)) > 0) {
-        if (crypto_secretstream_xchacha20poly1305_pull(
-                    &stream->state,
-                    plaintext,
-                    &plaintext_len,
-                    &tag,
-                    ciphertext,
-                    n,
-                    nullptr,
-                    0
-                ) != 0) {
-			sodium_memzero(plaintext, plaintext_len);
-       		throw std::runtime_error("Sodium error: pull failed");
-        }
-		
-        on_chunk_ready(plaintext, plaintext_len, writer);
+    for (;;) {
+        // 1. Read ciphertext length
+        uint32_t clen_u32;
+        read_exact(fd_in, &clen_u32, sizeof(clen_u32));
 
+        const size_t ciphertext_len = clen_u32;
+
+        if (ciphertext_len < crypto_secretstream_xchacha20poly1305_ABYTES) {
+            throw std::runtime_error("Invalid ciphertext length");
+        }
+
+        // 2. Read ciphertext
+        std::vector<uint8_t> ciphertext(ciphertext_len);
+        read_exact(fd_in, ciphertext.data(), ciphertext_len);
+
+        // 3. Prepare plaintext buffer
+        std::vector<uint8_t> plaintext(
+            ciphertext_len - crypto_secretstream_xchacha20poly1305_ABYTES
+        );
+
+        unsigned long long plaintext_len = 0;
+        uint8_t tag = 0;
+		
+		std::cout << "Ciphertext len: " << ciphertext_len << std::endl;
+
+        // 4. Decrypt
+        if (crypto_secretstream_xchacha20poly1305_pull(
+                &stream->state,
+                plaintext.data(),
+                &plaintext_len,
+                &tag,
+                ciphertext.data(),
+                ciphertext_len,
+                nullptr,
+                0
+            ) != 0) {
+
+            sodium_memzero(plaintext.data(), plaintext.size());
+            throw std::runtime_error("Sodium error: pull failed");
+        }
+
+        // 5. Emit plaintext
+        on_chunk_ready(plaintext.data(), plaintext_len, writer);
+
+        sodium_memzero(plaintext.data(), plaintext.size());
+
+        // 6. Handle FINAL tag
         if (tag == crypto_secretstream_xchacha20poly1305_TAG_FINAL) {
             break;
         }

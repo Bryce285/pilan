@@ -2,6 +2,7 @@
 #include <array>
 #include <fstream>
 #include <filesystem>
+#include <iostream>
 
 #pragma once
 

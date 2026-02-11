@@ -3,36 +3,41 @@
 // lock memory of key_buf anytime this function is called
 void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
-    if (std::filesystem::exists(MDK_PATH)) {
-        std::ifstream in_file(MDK_PATH, std::ios::binary);
-        if (!in_file) {
-            throw std::runtime_error("File error: Failed to open " + MDK_PATH.string());
-        }
-        
-        std::streampos size = in_file.tellg();
-        in_file.seekg(0, std::ios::beg);
+	if (std::filesystem::exists(MDK_PATH)) {
 
-        if (size != crypto_kdf_KEYBYTES) {
-            throw std::runtime_error("MDK error: master device key does not have expected size");
-        }
-		
-		// TODO - put this in a loop to ensure all data is read
-        in_file.read(reinterpret_cast<char*>(key_buf), crypto_kdf_KEYBYTES);
-		if (in_file.fail() || in_file.bad()) {
-			throw std::runtime_error("File error: Failed to read master device key from disk");
-		}
+    	auto size = std::filesystem::file_size(MDK_PATH);
+    	if (size != crypto_kdf_KEYBYTES) {
+        	throw std::runtime_error("MDK error: incorrect file size");
+    	}
 
-        std::streamsize bytes_read = in_file.gcount();
-        if (bytes_read != crypto_kdf_KEYBYTES) {
-            throw std::runtime_error("MDK error: Wrong number of bytes read");
-        }
+    	std::ifstream in_file(MDK_PATH, std::ios::binary);
+    	if (!in_file) {
+        	throw std::runtime_error("Failed to open MDK file");
+    	}
 
-        in_file.close();
-    }
-    else {
-        crypto_kdf_keygen(key_buf);
-		// TODO - write mdk to path
-    }
+    	in_file.read(reinterpret_cast<char*>(key_buf), crypto_kdf_KEYBYTES);
+
+    	if (in_file.gcount() != crypto_kdf_KEYBYTES) {
+        	throw std::runtime_error("Failed to read full MDK");
+    	}
+	}
+	else {
+
+    	crypto_kdf_keygen(key_buf);
+
+    	std::ofstream out_file(MDK_PATH, std::ios::binary);
+    	if (!out_file) {
+        	throw std::runtime_error("Failed to create MDK file");
+    	}
+
+    	out_file.write(reinterpret_cast<const char*>(key_buf), crypto_kdf_KEYBYTES);
+
+    	if (!out_file) {
+        	throw std::runtime_error("Failed to write MDK");
+    	}
+
+    	out_file.flush();
+	}
 }
 
 void KeyManager::TMP_write_tak(uint8_t* tak)

@@ -29,42 +29,46 @@ std::string ServerStorageManager::sanitize_filename(std::string name)
 	return name;
 }
 
-ServerStorageManager::UploadHandle ServerStorageManager::start_upload(const std::string& name, size_t size)
+std::unique_ptr<ServerStorageManager::UploadHandle> ServerStorageManager::start_upload(const std::string& name, size_t size)
 {
 	std::string name_sanitized = sanitize_filename(name);
-	UploadHandle handle;
+	std::unique_ptr<UploadHandle> handle = std::make_unique<UploadHandle>();
 
-	handle.tmp_path = config.tmp_dir / (name_sanitized + ".tmp");
-	handle.final_path = config.files_dir / name_sanitized;
-	handle.meta_path = config.meta_dir / (name_sanitized + ".json");
+	handle->tmp_path = config.tmp_dir / (name_sanitized + ".tmp");
+	handle->final_path = config.files_dir / name_sanitized;
+	handle->meta_path = config.meta_dir / (name_sanitized + ".json");
 
-	handle.fd = ::open(handle.tmp_path.c_str(),
+	handle->fd = ::open(handle->tmp_path.c_str(),
 						O_CREAT | O_EXCL | O_WRONLY,
 						0600);
 	
-	if (handle.fd == -1) {
+	if (handle->fd == -1) {
 		throw std::runtime_error("::open() failed");
 	}
 
-	handle.expected_size = size;
-	handle.bytes_written = 0;
-	handle.active = true;
+	handle->expected_size = size;
+	handle->bytes_written = 0;
+	handle->active = true;
 
     if (crypto_generichash_init(
-			&handle.hash_state, 
+			&handle->hash_state, 
 			nullptr, 
 			0, 
 			crypto_generichash_BYTES) != 0) {
     	throw std::runtime_error("Hash init failed");
     }
 
-    handle.encrypt_state = crypto_rest.file_encrypt_init(handle.fd, FEK.key_buf);
+    handle->encrypt_state = crypto_rest.file_encrypt_init(handle->fd, FEK.key_buf);
 
 	return handle;	
 }
 
 void ServerStorageManager::write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk)
 {
+	if (final_chunk) {
+		assert(len == 0);
+	}
+
 	if (!handle.active) throw std::logic_error("Upload not active");
 
     if (crypto_generichash_update(&handle.hash_state, data, len) != 0) {
@@ -247,6 +251,8 @@ void ServerStorageManager::data_to_send(uint8_t* data, size_t len, StreamWriter&
 
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
+	std::cout << "Entered stream_file()" << std::endl;
+
 	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	
@@ -261,6 +267,12 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 	}
     
     std::unique_ptr<SecureSecretstreamState> decrypt_state = crypto_rest.file_decrypt_init(fd, FEK.key_buf);
+	
+	if (decrypt_state == nullptr) {
+		throw std::runtime_error("Sodium error: Failed to initialize file decryption");
+	}
+	
+	std::cout << "Before decrypt_chunk: " << decrypt_state.get() << std::endl;
 
     crypto_rest.decrypt_chunk(
 		fd, 
@@ -270,6 +282,8 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		}, 
 		writer
 	);
+
+	std::cout << "After decrypt_chunk: " << decrypt_state.get() << std::endl;
 
 	// close file
 	writer.flush();

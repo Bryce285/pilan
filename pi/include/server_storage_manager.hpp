@@ -32,6 +32,8 @@ class ServerStorageManager
 		};
 		
 		struct UploadHandle {
+			UploadHandle() = default;
+
 			int fd;
             
 			std::filesystem::path tmp_path;
@@ -46,6 +48,12 @@ class ServerStorageManager
             std::unique_ptr<SecureSecretstreamState> encrypt_state;
 
 			bool active;
+			
+			// non-moveable and non-copyable
+			UploadHandle(const UploadHandle&) = delete;
+    		UploadHandle& operator=(const UploadHandle&) = delete;
+    		UploadHandle(UploadHandle&&) = delete;
+    		UploadHandle& operator=(UploadHandle&&) = delete;
 		};
 
 		struct FileInfo {
@@ -66,7 +74,7 @@ class ServerStorageManager
 			SESSION_KEY = &key;
 		}
 
-		UploadHandle start_upload(const std::string& name, size_t size);
+		std::unique_ptr<UploadHandle> start_upload(const std::string& name, size_t size);
 		void write_chunk(UploadHandle& handle, uint8_t* data, size_t len, bool final_chunk);
 		void commit_upload(UploadHandle& handle);
 		void abort_upload(UploadHandle& handle);

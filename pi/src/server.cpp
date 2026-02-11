@@ -137,13 +137,7 @@ bool Server::upload_file(ClientState& state)
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
 	if (to_write > 0) {
-
-        if (state.in_bytes_remaining - to_write == 0) {
-		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.data(), to_write, true);
-        }
-        else {
-		    storage_manager.write_chunk(cur_upload_handle, state.rx_buffer.data(), to_write, false);
-        }
+		storage_manager.write_chunk(*cur_upload_handle, state.rx_buffer.data(), to_write, false);
 
 		state.in_bytes_remaining -= to_write;
 
@@ -151,7 +145,9 @@ bool Server::upload_file(ClientState& state)
 		state.rx_buffer.erase(state.rx_buffer.begin(), state.rx_buffer.begin() + to_write);
 
 		if (state.in_bytes_remaining == 0) {
-			storage_manager.commit_upload(cur_upload_handle);						
+			storage_manager.write_chunk(*cur_upload_handle, nullptr, 0, true);
+
+			storage_manager.commit_upload(*cur_upload_handle);						
 			state.command = DEFAULT;
 			return true;
 		}

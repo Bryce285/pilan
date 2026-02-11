@@ -29,7 +29,8 @@ struct SecureSecretstreamState {
     }
 
     ~SecureSecretstreamState() {
-        sodium_memzero(&state, sizeof(state));
+        std::cerr << "Secretstream state destroyed!\n" << std::endl;
+		sodium_memzero(&state, sizeof(state));
         sodium_munlock(&state, sizeof(state));
     }
 	
