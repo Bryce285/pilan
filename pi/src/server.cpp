@@ -137,7 +137,18 @@ bool Server::upload_file(ClientState& state)
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
 	if (to_write > 0) {
-		storage_manager.write_chunk(*cur_upload_handle, state.rx_buffer.data(), to_write, false);
+		try {
+			storage_manager.write_chunk(*cur_upload_handle, state.rx_buffer.data(), to_write, false);
+		}
+		catch (const std::exception& e) {
+			state.command = DEFAULT;
+			
+			logger.log_event(Logger::LogEvent::UPLOAD_FAILURE);
+			std::cerr << "Failed to write chunk: " << e.what() << std::endl;
+			storage_manager.abort_upload(*cur_upload_handle);
+		
+			return true;
+		}
 
 		state.in_bytes_remaining -= to_write;
 
@@ -149,6 +160,9 @@ bool Server::upload_file(ClientState& state)
 
 			storage_manager.commit_upload(*cur_upload_handle);						
 			state.command = DEFAULT;
+
+			logger.log_event(Logger::LogEvent::UPLOAD_COMPLETE);
+
 			return true;
 		}
 	}
@@ -177,25 +191,32 @@ void Server::download_file(ClientState& state, int clientfd)
 		storage_manager.stream_file(state.ofilename, writer);	
 	}
 	catch (const std::exception& e) {
+		logger.log_event(Logger::LogEvent::DOWNLOAD_FAILURE);
+
 		std::cerr << "Failed to stream file: " << e.what() << std::endl;
 	}
 				
 	state.command = DEFAULT;
+
+	logger.log_event(Logger::LogEvent::DOWNLOAD_COMPLETE);
 }
 
 void Server::list_files(ClientState& state, int clientfd)
 {
     SocketStreamWriter writer(clientfd);
-	
-	std::cout << "Entered list function" << std::endl;
-	
-	std::vector<ServerStorageManager::FileInfo> files = storage_manager.list_files();
-
 	std::string message;
-	for (size_t i = 0; i < files.size(); i++) {
-		message.append(files[i].name + "\n");
-	}
 	
+	try{	
+		std::vector<ServerStorageManager::FileInfo> files = storage_manager.list_files();
+		for (size_t i = 0; i < files.size(); i++) {
+			message.append(files[i].name + "\n");
+		}
+	}
+	catch (const std::exception& e) {
+		logger.log_event(Logger::LogEvent::FILE_LIST_FAILURE);
+		std::cerr << "Failed to get file list: " << e.what() << std::endl;
+	}
+
 	std::cout << "Attempting to send files list" << std::endl;
     
     storage_manager.crypto_transit.encrypted_string_send(
@@ -205,6 +226,8 @@ void Server::list_files(ClientState& state, int clientfd)
 		}, 
 		SESSION_KEY->key_buf
 	);
+	
+	logger.log_event(Logger::LogEvent::FILE_LIST);
 
 	std::cout << "Files list sent" << std::endl;
 	std::cout << message << std::endl;
@@ -216,7 +239,17 @@ void Server::delete_file(ClientState& state, int clientfd)
 {
     SocketStreamWriter writer(clientfd);
 
-	storage_manager.delete_file(state.file_to_delete);
+	try {
+		storage_manager.delete_file(state.file_to_delete);
+	}
+	catch (const std::exception& e) {
+		logger.log_event(Logger::LogEvent::FILE_DELETE_FAILURE);
+		std::cerr << "Failed to delete file: " << e.what() << std::endl;
+		state.command = DEFAULT;
+		return;
+	}
+
+	logger.log_event(Logger::LogEvent::FILE_DELETE);
 
 	std::string message = "File deleted\n";	
     storage_manager.crypto_transit.encrypted_string_send(
@@ -226,7 +259,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 		}, 
 		SESSION_KEY->key_buf
 	);
-
+	
 	state.command = DEFAULT;
 }
 
@@ -273,10 +306,17 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		std::string cmd;
 		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
 		
-		cur_upload_handle = storage_manager.start_upload(state.ifilename, state.in_bytes_remaining);
+		try{	
+			cur_upload_handle = storage_manager.start_upload(state.ifilename, state.in_bytes_remaining);
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Error starting upload: " << e.what() << std::endl;
+		}
 
 		state.command = UPLOAD;
 		response = "UPLOADING\n";
+
+		logger.log_event(Logger::LogEvent::UPLOAD_START);
 	}
 	else if (line.rfind("DOWNLOAD", 0) == 0) {
 				
@@ -292,6 +332,8 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		iss >> cmd >> state.ofilename;	
 
 		state.command = DOWNLOAD;
+
+		logger.log_event(Logger::LogEvent::DOWNLOAD_START);
 	}
 	else if (line.rfind("DELETE", 0) == 0) {
 
@@ -472,10 +514,14 @@ void Server::handle_client(int clientfd)
 	set_timeout(clientfd);
 	
 	if(!authenticate(clientfd)) {
+		logger.log_event(Logger::LogEvent::CLIENT_AUTH_FAILURE);
+
 		close(clientfd);
 		return;
 	}
 	
+	logger.log_event(Logger::LogEvent::CLIENT_AUTH_SUCCESS);
+
 	client_loop(clientfd);
 	close(clientfd);
 }

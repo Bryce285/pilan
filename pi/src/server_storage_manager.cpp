@@ -31,6 +31,12 @@ std::string ServerStorageManager::sanitize_filename(std::string name)
 
 std::unique_ptr<ServerStorageManager::UploadHandle> ServerStorageManager::start_upload(const std::string& name, size_t size)
 {
+	std::filesystem::space_info info = std::filesystem::space("/home");
+	if (size > info.available) {
+		logger.log_event(Logger::LogEvent::DISK_FULL);
+		throw std::runtime_error("Not enough disk space for this upload");
+	}
+
 	std::string name_sanitized = sanitize_filename(name);
 	std::unique_ptr<UploadHandle> handle = std::make_unique<UploadHandle>();
 
@@ -137,6 +143,8 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 	::unlink(handle.tmp_path.c_str());
 
 	handle.active = false;
+
+	logger.log_event(Logger::LogEvent::UPLOAD_ABORT);
 }
 
 ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::string& name)

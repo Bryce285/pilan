@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <mutex>
+#include <sys/statvfs.h>
+#include <iostream>
 
 #pragma once
 
@@ -24,14 +27,16 @@ class Logger
 			CLIENT_AUTH_FAILURE,			// WARN
 			UPLOAD_START,					// INFO
 			UPLOAD_COMPLETE,				// INFO
-			UPLOAD_FAILURE,					// ERROR
-			UPLOAD_ABORT,					// WARN
+			UPLOAD_FAILURE,					// ERROR 
+			UPLOAD_ABORT,					// WARN 
 			DOWNLOAD_START,					// INFO
 			DOWNLOAD_COMPLETE,				// INFO
 			DOWNLOAD_FAILURE,				// ERROR
-			DOWNLOAD_ABORT,					// WARN
-			DISK_FULL,						// ERROR
-			RECOVERY_INCOMPLETE_UPLOAD		// WARN
+			FILE_DELETE,					// INFO
+			FILE_DELETE_FAILURE,			// ERROR
+			FILE_LIST,						// INFO
+			FILE_LIST_FAILURE,				// ERROR
+			DISK_FULL,						// ERROR 
 		};
 		
 		std::unordered_map<LogEvent, const char*> level_map;
@@ -52,25 +57,28 @@ class Logger
 				case LogEvent::DOWNLOAD_START: return "DOWNLOAD_START";
 				case LogEvent::DOWNLOAD_COMPLETE: return "DOWNLOAD_COMPLETE";
 				case LogEvent::DOWNLOAD_FAILURE: return "DOWNLOAD_FAILURE";
-				case LogEvent::DOWNLOAD_ABORT: return "DOWNLOAD_ABORT";
+				case LogEvent::FILE_DELETE: return "FILE_DELETE";
+				case LogEvent::FILE_DELETE_FAILURE: return "FILE_DELETE_FAILURE";
+				case LogEvent::FILE_LIST: return "FILE_LIST";
+				case LogEvent::FILE_LIST_FAILURE: return "FILE_LIST_FAILURE";
 				case LogEvent::DISK_FULL: return "DISK_FULL";
-				case LogEvent::RECOVERY_INCOMPLETE_UPLOAD: return "RECOVERY_INCOMPLETE_UPLOAD";
         		default:              return "UNKNOWN";
     		}
 		}	
 
-		// rotate logs
-		void log_rotate();
-
-		// create a Log object and buffer in memory with logs_buffer
 		void log_event(LogEvent event);
 
 	private:
-		const char* log_path_ = "/home/bryce/projects/offlinePiFS/pi/data/logs";
-		constexpr static size_t log_max_bytes_ = 10240; // 10mb
-		size_t log_cur_bytes_ = 0;
+		std::mutex mutex;
+		bool logs_enabled = true;
 
+		static constexpr const char* log_path_ = "/home/bryce/projects/offlinePiFS/pi/data/logs";
+		static constexpr size_t log_max_bytes_ = 10240; // 10mb
+		size_t log_cur_bytes_ = 0;
 		int logfd_ = -1;
 		
-		bool disk_full_ = false;
+		struct statvfs stat;
+		
+		void log_rotate();
+		unsigned long long get_avail_storage();
 };

@@ -13,6 +13,7 @@
 #include "stream_writer.hpp"
 #include "crypto.hpp"
 #include "secure_mem.hpp"
+#include "logger.hpp"
 
 #pragma once
 
@@ -43,7 +44,6 @@ class ServerStorageManager
 			size_t expected_size;
 			size_t bytes_written;
 			
-			// TODO - mlock all state objects that contain secrets
 			crypto_generichash_state hash_state;
             std::unique_ptr<SecureSecretstreamState> encrypt_state;
 
@@ -66,8 +66,8 @@ class ServerStorageManager
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
         
-		explicit ServerStorageManager(const StorageConfig& cfg, SecureKey& fek)
-			: config(cfg), FEK(fek), SESSION_KEY(nullptr) {}	
+		explicit ServerStorageManager(Logger& lgr, const StorageConfig& cfg, SecureKey& fek)
+			: logger(lgr), config(cfg), FEK(fek), SESSION_KEY(nullptr) {}	
 	
 		void set_session_key(SecureKey& key)
 		{
@@ -86,11 +86,10 @@ class ServerStorageManager
 		void stream_file(std::string& name, StreamWriter& writer);
 
 	private:
+		Logger& logger;
 		StorageConfig config;
 				
         SecureKey& FEK;
-
-		// TODO - assert session_key is non-zero before first use in this object
         SecureKey* SESSION_KEY;
 		
 		uint64_t unix_timestamp_ms();

@@ -2,11 +2,21 @@
 
 Logger::Logger()
 {
+	// statvfs in used to check available disk space
+	// if we can't check disk space then logging is disabled
+	if (statvfs("/home", &stat) != 0) {
+		perror("Failed to initialize statvfs. Logging will be disabled."); 
+		logs_enabled = false;
+	}
+
 	logfd_ = ::open(
         log_path_,
         O_WRONLY | O_CREAT | O_APPEND,
         0644
     );
+	if (logfd_ == -1) {
+		std::cerr << "Failed to open log file" << std::endl;
+	}
 
     log_cur_bytes_ = 0;
 
@@ -22,9 +32,17 @@ Logger::Logger()
 	level_map[LogEvent::DOWNLOAD_START] = "INFO";
 	level_map[LogEvent::DOWNLOAD_COMPLETE] = "INFO";
 	level_map[LogEvent::DOWNLOAD_FAILURE] = "ERROR";
-	level_map[LogEvent::DOWNLOAD_ABORT] = "WARN";
+	level_map[LogEvent::FILE_DELETE] = "INFO";
+	level_map[LogEvent::FILE_DELETE_FAILURE] = "ERROR";
+	level_map[LogEvent::FILE_LIST] = "INFO";
+	level_map[LogEvent::FILE_LIST_FAILURE] = "ERROR";
 	level_map[LogEvent::DISK_FULL] = "ERROR";
-	level_map[LogEvent::RECOVERY_INCOMPLETE_UPLOAD] = "WARN";
+}
+
+unsigned long long Logger::get_avail_storage()
+{
+	unsigned long long available = stat.f_bavail * stat.f_frsize;
+	return available;
 }
 
 void Logger::log_rotate()
@@ -49,7 +67,10 @@ void Logger::log_rotate()
 }
 
 void Logger::log_event(Logger::LogEvent event)
-{	
+{
+	std::lock_guard<std::mutex> lock(mutex);
+
+	if (logs_enabled == false) return;
 	if (logfd_ < 0) return;
 	
 	log_rotate();
@@ -68,6 +89,8 @@ void Logger::log_event(Logger::LogEvent event)
 				level,
 				event_str
 			);
+	
+	if (static_cast<unsigned long long>(n) > get_avail_storage()) return;
 
 	if (n > 0) {
 		ssize_t written = ::write(logfd_, buf, (size_t)n);

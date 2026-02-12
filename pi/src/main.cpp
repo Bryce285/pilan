@@ -22,8 +22,15 @@
 
 #include "server.hpp"
 #include "key_manager.hpp"
+#include "logger.hpp"
 
-Server server;
+Logger logger;
+Server server(logger);
+
+void log_exit()
+{
+	logger.log_event(Logger::LogEvent::SERVICE_STOP);
+}
 
 // for logging connections
 struct ClientConnection 
@@ -36,6 +43,10 @@ struct ClientConnection
 
 int main()
 {
+	logger.log_event(Logger::LogEvent::SERVICE_START);
+
+	std::atexit(log_exit);
+
     if (sodium_init() < 0) {
         std::cerr << "Failed to initialize libsodium" << std::endl;
         exit(1);
@@ -101,6 +112,8 @@ int main()
 					<< " on port " << connection.port << " with file descriptor "
 					<< connection.fd << std::endl;
 		
+		logger.log_event(Logger::LogEvent::CLIENT_CONNECT);
+
 		std::thread t(&Server::handle_client, &server, clientfd);
 		t.detach();
 	}

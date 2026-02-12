@@ -25,17 +25,22 @@
 #include "key_manager.hpp"
 #include "crypto.hpp"
 #include "secure_mem.hpp"
+#include "logger.hpp"
 
 #pragma once
 
 class Server 
 {
 	public:
+		Server(Logger& lgr) : logger(lgr) {}
+
 		void handle_client(int clientfd);
 
 	private:
 		// TODO - make sure auth actually times out after 30s
 		const int AUTH_TIMEOUT = 30;
+		
+		Logger& logger;
 
         KeyManager key_manager;
         std::unique_ptr<SecureKey> MDK = std::make_unique<SecureKey>(KeyType::MASTER_DEVICE);
@@ -60,7 +65,7 @@ class Server
 			.read_only = false
 		};
 		
-		ServerStorageManager storage_manager{config, *FEK};
+		ServerStorageManager storage_manager{logger, config, *FEK};
 
 		std::unique_ptr<ServerStorageManager::UploadHandle> cur_upload_handle;
 

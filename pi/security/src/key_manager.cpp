@@ -26,10 +26,11 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
     	crypto_kdf_keygen(key_buf);
 
     	std::ofstream out_file(MDK_PATH, std::ios::binary);
+		out_file.exceptions(std::ios::failbit | std::ios::badbit);
     	if (!out_file) {
         	throw std::runtime_error("Failed to create MDK file");
     	}
-
+		
     	out_file.write(reinterpret_cast<const char*>(key_buf), crypto_kdf_KEYBYTES);
 
     	if (!out_file) {
