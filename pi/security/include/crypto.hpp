@@ -18,9 +18,6 @@ class CryptoAtRest
     public:
         using PlaintextSink = std::function<void(uint8_t* data, size_t len, StreamWriter& writer)>;
 
-        // TODO - use sodium_memzero and sodium_mlock to secure memory
-
-        // TODO - make sure the recv buffers are the same size
         constexpr static size_t CHUNK_SIZE = 16348; // 16kB
 
         std::unique_ptr<SecureSecretstreamState> file_encrypt_init(int fd_out, const uint8_t* fek);

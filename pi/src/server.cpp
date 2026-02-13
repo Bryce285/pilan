@@ -1,5 +1,6 @@
 #include "server.hpp"
 
+/*
 void Server::set_timeout(int clientfd)
 {
 	struct timeval tv;
@@ -8,9 +9,13 @@ void Server::set_timeout(int clientfd)
 	setsockopt(clientfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 	setsockopt(clientfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 }
+*/
 
 bool Server::authenticate(int clientfd)
 {
+	std::chrono::steady_clock::time_point auth_deadline = 
+		std::chrono::steady_clock::now() + std::chrono::seconds(AUTH_TIMEOUT);
+
     SocketStreamWriter writer(clientfd);
 
 	// client uses nonce to generate authentication tag
@@ -36,7 +41,13 @@ bool Server::authenticate(int clientfd)
     // receive auth tag from client
 	size_t total_tag = 0;
 	while (total_tag < crypto_auth_hmacsha256_BYTES) {
-		ssize_t n = recv(clientfd, buf, sizeof(buf), 0); // TODO need to factor in the totals here like in the previous loop?
+		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+		if (now > auth_deadline) {
+			std::cout << "Authentication timeout" << std::endl;
+			return false;
+		}
+
+		ssize_t n = recv(clientfd, buf + total_tag, sizeof(buf) - total_tag, 0); 
 		if (n < 0) {
 			if (errno == EINTR) continue;
 			if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
@@ -290,6 +301,16 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
  		*/
 		std::cout << "[INFO] Command recieved: LIST" << std::endl;
 		
+		std::istringstream iss(line);
+		std::string cmd;
+		iss >> cmd;
+
+		std::string extra;
+		if (iss >> extra) {
+			std::cout << "extra input: " << extra << std::endl;
+			throw std::runtime_error("Unexpected extra input");
+		}
+	
 		state.command = LIST;
 		response = "LISTING\n";
 	}
@@ -301,10 +322,26 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		*/
 		std::cout << "[INFO] Command recieved: UPLOAD" << std::endl;
 
-		// TODO - handle errors for unexpected input
 		std::istringstream iss(line);
 		std::string cmd;
-		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
+		std::string filename;
+		size_t bytes_remaining;
+
+		if (!(iss >> cmd >> filename >> bytes_remaining)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename> <byte_count>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+
+		if (bytes_remaining == 0) {
+			throw std::runtime_error("Byte count cannot be empty");
+		}
+
+		state.ifilename = filename;
+		state.in_bytes_remaining = bytes_remaining;
 		
 		try{	
 			cur_upload_handle = storage_manager.start_upload(state.ifilename, state.in_bytes_remaining);
@@ -326,11 +363,20 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		*/
 		std::cout << "[INFO] Command recieved: DOWNLOAD" << std::endl;
 
-		// TODO - handle errors for unexpected input
 		std::istringstream iss(line);
 		std::string cmd;
-		iss >> cmd >> state.ofilename;	
+		std::string filename;
 
+		if (!(iss >> cmd >> filename)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+		
+		state.ofilename = filename;
 		state.command = DOWNLOAD;
 
 		logger.log_event(Logger::LogEvent::DOWNLOAD_START);
@@ -345,13 +391,32 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		
 		std::istringstream iss(line);
 		std::string cmd;
-		iss >> cmd >> state.file_to_delete;
+		std::string filename;
 
+		if (!(iss >> cmd >> filename)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename>");
+		}
+		
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+		
+		state.file_to_delete = filename;
 		state.command = DELETE;
 		response = "DELETING\n";
 	}
 	else if (line == "QUIT") {	
 		std::cout << "[INFO] Command recieved: QUIT" << std::endl;
+		
+		std::istringstream iss(line);
+		std::string cmd;	
+		iss >> cmd;
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
 
 		response = "200 BYE\n";
 	}
@@ -437,15 +502,8 @@ void Server::client_loop(int clientfd)
 		}
 
 		if (state.command == DEFAULT) {
-            // TODO - possible bug: if we are in default mode and receive a chunk that
-            // contains a partial protocol header (not \n terminated), i think we will
-            // exit out of the client loop instead of looping back to receive another
-            // chunk
-
 			// assemble protocol messages
 			while (true) {
-				//std::cout << "inner loop" << std::endl;
-                
 				auto it = std::find(state.rx_buffer.begin(),
                                     state.rx_buffer.end(),
                                     static_cast<uint8_t>('\n'));
@@ -453,10 +511,16 @@ void Server::client_loop(int clientfd)
                     break;
 
                 size_t pos = std::distance(state.rx_buffer.begin(), it);
-				std::string response = parse_msg(state, pos);
+				std::string response;
+				
+				try {
+					response = parse_msg(state, pos);
+				}
+				catch (const std::exception& e) {
+					std::cerr << "Failed to parse client message: " << e.what() << std::endl;
+				}
 
 				// send response
-                // TODO - encrypted_string_send return value should be a bool so we can easily error check
 				storage_manager.crypto_transit.encrypted_string_send(
 					response, 
 					[&](const uint8_t* data, size_t len) {
@@ -511,7 +575,7 @@ void Server::client_loop(int clientfd)
 
 void Server::handle_client(int clientfd)
 {
-	set_timeout(clientfd);
+	//set_timeout(clientfd);
 	
 	if(!authenticate(clientfd)) {
 		logger.log_event(Logger::LogEvent::CLIENT_AUTH_FAILURE);

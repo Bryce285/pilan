@@ -3,15 +3,6 @@
 
 #pragma once
 
-/*	TODO
-*	The architecture here can be cleaned up. Some of these structs can probably
-*	be combined and just have multiple constructors. Using these structs also makes
-* 	some of the functions implemented in the CryptoInTransit / CryptoAtRest API
-* 	obselete so those functions can probably be removed. If we can get this file down
-*	to one or two structs than we might want to put them in the crypto header for a 
-*	cleaner API.
-*/
-
 enum class KeyType {
 	MASTER_DEVICE,
 	TRANSFER_AUTH,

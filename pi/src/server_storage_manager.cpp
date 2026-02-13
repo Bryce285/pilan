@@ -65,6 +65,9 @@ std::unique_ptr<ServerStorageManager::UploadHandle> ServerStorageManager::start_
     }
 
     handle->encrypt_state = crypto_rest.file_encrypt_init(handle->fd, FEK.key_buf);
+	if (handle->encrypt_state == nullptr) {
+		throw std::runtime_error("Failed to initialize file encryption");
+	}
 
 	return handle;	
 }
@@ -134,7 +137,6 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	handle.active = false;
 }
 
-// TODO - figure out where to use this method
 void ServerStorageManager::abort_upload(UploadHandle& handle)
 {
 	if (!handle.active) return;
@@ -189,7 +191,6 @@ std::vector<ServerStorageManager::FileInfo> ServerStorageManager::list_files()
 	return files;
 }
 
-// TODO - when opening files should we throw an error or just print one?
 void ServerStorageManager::delete_file(const std::string& name)
 {
 	// find and validate file
@@ -205,7 +206,7 @@ void ServerStorageManager::delete_file(const std::string& name)
 		::close(dir_fd);
 	}
 	else if (dir_fd == -1) {
-		std::cerr << "Failed to open file" << std::endl;
+		throw std::runtime_error("Failed to open file");	
 	}
 	
 	// delete the file
@@ -217,7 +218,7 @@ void ServerStorageManager::delete_file(const std::string& name)
 		::close(dir_fd);
 	}
 	else if (dir_fd == -1) {
-		std::cerr << "Failed to open file" << std::endl;
+		throw std::runtime_error("Failed to open file");	
 	}
 
 	// delete metadata

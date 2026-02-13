@@ -37,8 +37,7 @@ class Server
 		void handle_client(int clientfd);
 
 	private:
-		// TODO - make sure auth actually times out after 30s
-		const int AUTH_TIMEOUT = 30;
+		static constexpr int AUTH_TIMEOUT = 10;
 		
 		Logger& logger;
 
@@ -95,7 +94,7 @@ class Server
 			int file_fd = -1;
 		};
 
-		void set_timeout(int clientfd);
+		//void set_timeout(int clientfd);
 		bool authenticate(int clientfd);
         
         bool recv_all(int sock, uint8_t* buf, size_t len);
