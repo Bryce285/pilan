@@ -248,9 +248,8 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len, std::vector<uint8_t>& plaintext_out, const uint8_t* session_key, uint8_t* nonce)
 {
     if (ciphertext_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
-        std::cerr << "Ciphertext length is less than authentication tag size" << std::endl;
-        return;
-    }
+    	throw std::runtime_error("Ciphertext length is less than authentication tag size");
+	}
     
     plaintext_out.resize(ciphertext_len);
 	unsigned long long plaintext_len;

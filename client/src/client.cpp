@@ -44,7 +44,15 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		std::uintmax_t filesize;
 
 		std::istringstream iss(cmd);
-		iss >> keyword >> filepath;
+
+		if (!(iss >> keyword >> filepath)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filepath>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
 
 		filename = filepath.filename().string();
 		filesize = std::filesystem::file_size(filepath);
@@ -62,7 +70,13 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		);
 		
 		std::string filepath_str = filepath.string();
-		storage_manager.stream_file(filepath_str, writer, session_key->key_buf);
+		
+		try {
+			storage_manager.stream_file(filepath_str, writer, session_key->key_buf);
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Failed to stream file: " << e.what() << std::endl;
+		}
 	}
 
 	// DOWNLOAD command format: DOWNLOAD <filename>
@@ -71,7 +85,15 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		std::string filename;
 
 		std::istringstream iss(cmd);
-		iss >> keyword >> filename;
+
+		if (!(iss >> keyword >> filename)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
 
 		data.append(keyword + " " + filename + "\n");
 
@@ -86,8 +108,18 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	// LIST command format: LIST
 	else if (cmd == "LIST") {
 		std::cout << "Sending LIST command" << std::endl;
+		
+		std::string keyword;
+		std::istringstream iss(cmd);
 
-		data = "LIST\n";
+		iss >> keyword;
+		
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+
+		data = keyword + "\n";
 
         crypto_transit.encrypted_string_send(
 			data, 
@@ -103,7 +135,15 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		std::string filename;
 
 		std::istringstream iss(cmd);
-		iss >> keyword >> filename;
+		
+		if (!(iss >> keyword >> filename)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
 
 		data.append(keyword + " " + filename + "\n");
 		
@@ -118,9 +158,19 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 		);
 	}
 	else if (cmd == "QUIT") {
-		state.connected = false;
-		data = "QUIT\n";
+		std::string keyword;
+		std::istringstream iss(cmd);
 
+		iss >> keyword;
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+
+		state.connected = false;
+		data = keyword + "\n";
+		
         crypto_transit.encrypted_string_send(
 			data, 
 			[&](const uint8_t* quit_cmd_data, size_t quit_cmd_len) {
@@ -155,7 +205,20 @@ void Client::parse_msg(ServerState& state, size_t pos)
 			
 		std::istringstream iss(line);
 		std::string cmd;
-		iss >> cmd >> state.ifilename >> state.in_bytes_remaining;
+		std::string filename;
+		size_t bytes_remaining;
+
+		if (!(iss >> cmd >> filename >> bytes_remaining)) {
+			throw std::runtime_error("Malformed input. Expected <cmd> <filename> <byte_count>");
+		}
+
+		std::string extra;
+		if (iss >> extra) {
+			throw std::runtime_error("Unexpected extra input");
+		}
+		
+		state.ifilename = filename;
+		state.in_bytes_remaining = bytes_remaining;
 
 		std::cout << "Keyword: [" << cmd << "], filename: [" << state.ifilename << "], filesize: [" << state.in_bytes_remaining << "]\n";
 		
@@ -253,8 +316,14 @@ bool Client::recv_encrypted_msg(int sock, uint8_t s_key[crypto_aead_xchacha20pol
     }
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
-
-    crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, s_key, nonce);
+	
+	try {
+    	crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, s_key, nonce);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Failed to decrypt message from client: " << e.what() << std::endl;
+		return false;
+	}
 
 	return true;
 }
@@ -295,8 +364,15 @@ void Client::handle_server_msg(ServerState& state, int sock)
                     break;
 
                 size_t pos = std::distance(state.rx_buffer.begin(), it);
-                parse_msg(state, pos);
-            }
+                
+				try {
+					parse_msg(state, pos);
+            	}
+				catch (const std::exception& e) {
+					std::cerr << "Failed to parse message from server" << std::endl;
+					state.connected = false;
+				}
+			}
         }
 
 		if (state.command == DEFAULT) {

@@ -1,7 +1,5 @@
 #include "crypto.hpp"
 
-// TODO - ERROR HANDLING
-
 // mlock key_buf anytime this function is used
 void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
@@ -112,16 +110,14 @@ void CryptoInTransit::encrypt_message(uint8_t* plaintext, size_t plaintext_len, 
 void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len, std::vector<uint8_t>& plaintext_out, uint8_t* session_key, uint8_t* nonce)
 {
 	if (ciphertext_len < crypto_aead_xchacha20poly1305_ietf_ABYTES) {
-		std::cerr << "Ciphertext length is less than authentication tag size" << std::endl;
-		return;
+		throw std::runtime_error("Ciphertext length is less than authentication tag size");	
 	}
 
-	// TODO - can just edit the caller provided plaintext buffer in-place
-	std::vector<uint8_t> plaintext(ciphertext_len);
+	plaintext_out.resize(ciphertext_len);
 	unsigned long long plaintext_len;
 
 	if (crypto_aead_xchacha20poly1305_ietf_decrypt(
-			plaintext.data(),
+			plaintext_out.data(),
 			&plaintext_len,
 			nullptr,
 			ciphertext,
@@ -130,18 +126,22 @@ void CryptoInTransit::decrypt_message(uint8_t* ciphertext, size_t ciphertext_len
 			nonce,
 			session_key
 		) != 0) {
-		sodium_memzero(plaintext.data(), plaintext.size());
+		sodium_memzero(plaintext_out.data(), plaintext_out.size());
 		throw std::runtime_error("Sodium decrypt error");
 	}
 
-	plaintext.resize(plaintext_len);
-	plaintext_out = plaintext;
+	plaintext_out.resize(plaintext_len);
 }
 
 void CryptoInTransit::encrypted_string_send(std::string message, DataSink on_message_ready, uint8_t* session_key)
 {
 	uint8_t* data = reinterpret_cast<uint8_t*>(message.data());
 	size_t len = std::size(message);
-
-	encrypt_message(data, len, on_message_ready, session_key);
+	
+	try {
+		encrypt_message(data, len, on_message_ready, session_key);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Failed to send encrypted string: " << e.what() << std::endl;
+	}
 }

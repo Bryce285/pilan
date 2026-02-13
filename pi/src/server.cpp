@@ -477,8 +477,14 @@ bool Server::recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_
 
     plaintext_out.resize(ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES);
 
-    storage_manager.crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
-	
+	try {
+    	storage_manager.crypto_transit.decrypt_message(ciphertext.data(), ciphertext_len, plaintext_out, session_key, nonce);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Failed to decrypt message from client: " << e.what() << std::endl;
+		return false;
+	}
+
 	return true;
 }
 

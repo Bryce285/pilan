@@ -52,7 +52,7 @@ void ClientStorageManager::write_chunk(DownloadHandle& handle, uint8_t* data, si
 {
 	if (!handle.active) throw std::logic_error("Download not active");
 
-	write(handle.fd, data, len);
+	::write(handle.fd, data, len);
 	handle.bytes_written += len;
 }
 
@@ -99,10 +99,6 @@ void ClientStorageManager::stream_file(const std::string& path_str, StreamWriter
 
 	FileInfo file_info = get_file_info(path_str);
 	uint64_t size = file_info.size_bytes;
-
-	//std::string header = "UPLOAD " + name_sanitized + " " + std::to_string(size) + "\n";
-
-	//writer.write(header.c_str(), sizeof(header));
 
 	int fd = open(path.string().c_str(), O_RDONLY);
 	if (fd < 0) {

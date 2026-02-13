@@ -92,8 +92,13 @@ int main() {
 		std::getline(std::cin, cmd);
 
 		// parse and send command to server
-		client.handle_cmd(state, cmd, sock);
-		
+		try {
+			client.handle_cmd(state, cmd, sock);
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Command handling error: " << e.what() << std::endl;
+		}
+
 		std::cout << "cmd handled" << std::endl;
 
 		// handle server response
