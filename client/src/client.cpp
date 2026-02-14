@@ -107,8 +107,6 @@ void Client::handle_cmd(ServerState& state, std::string cmd, int sock) {
 	}
 	// LIST command format: LIST
 	else if (cmd == "LIST") {
-		std::cout << "Sending LIST command" << std::endl;
-		
 		std::string keyword;
 		std::istringstream iss(cmd);
 
@@ -262,6 +260,7 @@ void Client::download_file(ServerState& state)
     if (state.in_bytes_remaining == 0) {
         storage_manager.commit_download(state.cur_download_handle);
         state.command = DEFAULT;
+		state.cur_srvr_msg_handled = true;
     }
 }
 
@@ -330,7 +329,7 @@ bool Client::recv_encrypted_msg(int sock, uint8_t s_key[crypto_aead_xchacha20pol
 
 void Client::handle_server_msg(ServerState& state, int sock)
 {
-	while (state.connected) {
+	while (state.connected && !state.cur_srvr_msg_handled) {
 		
 		if (state.command == DOWNLOAD) {
 			while (state.in_bytes_remaining > 0 &&
@@ -379,6 +378,7 @@ void Client::handle_server_msg(ServerState& state, int sock)
 			if (!plaintext_buf.empty()) {
 				for (uint8_t c : plaintext_buf) {
 					std::cout << c;
+					if (c == '\n') state.cur_srvr_msg_handled = true;
 				}
 				std::cout << std::endl;
 			}

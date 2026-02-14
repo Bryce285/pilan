@@ -141,7 +141,7 @@ bool Server::authenticate(int clientfd)
 	return true;
 }
 
-bool Server::upload_file(ClientState& state)
+bool Server::upload_file(ClientState& state, int clientfd)
 {
 	std::cout << "Entered upload function" << std::endl;
 
@@ -173,6 +173,15 @@ bool Server::upload_file(ClientState& state)
 			state.command = DEFAULT;
 
 			logger.log_event(Logger::LogEvent::UPLOAD_COMPLETE);
+			
+    		SocketStreamWriter writer(clientfd);
+    		storage_manager.crypto_transit.encrypted_string_send(
+				"UPLOAD COMPLETE\n", 
+				[&](const uint8_t* data, size_t len) {
+					writer.write(data, len);
+				}, 
+				SESSION_KEY->key_buf
+			);
 
 			return true;
 		}
@@ -274,7 +283,7 @@ void Server::delete_file(ClientState& state, int clientfd)
 	state.command = DEFAULT;
 }
 
-std::string Server::parse_msg(ClientState& state, size_t pos)
+void Server::parse_msg(ClientState& state, size_t pos)
 {
 	std::cout << "Entered message parsing function" << std::endl;
 
@@ -291,8 +300,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 	}		
 	
 	// parse commands
-	std::string response;
-
 	if (line == "LIST") {
 
 		/* 
@@ -312,7 +319,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		}
 	
 		state.command = LIST;
-		response = "LISTING\n";
 	}
 	else if (line.rfind("UPLOAD", 0) == 0) {
 					
@@ -351,8 +357,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		}
 
 		state.command = UPLOAD;
-		response = "UPLOADING\n";
-
 		logger.log_event(Logger::LogEvent::UPLOAD_START);
 	}
 	else if (line.rfind("DOWNLOAD", 0) == 0) {
@@ -404,7 +408,6 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 		
 		state.file_to_delete = filename;
 		state.command = DELETE;
-		response = "DELETING\n";
 	}
 	else if (line == "QUIT") {	
 		std::cout << "[INFO] Command recieved: QUIT" << std::endl;
@@ -418,15 +421,12 @@ std::string Server::parse_msg(ClientState& state, size_t pos)
 			throw std::runtime_error("Unexpected extra input");
 		}
 
-		response = "200 BYE\n";
+		state.command = QUIT;
 	}
 	else {
 		std::cout << "[INFO] Command recieved: UNKNOWN" << std::endl;
-
-		response = "400 UNKNOWN COMMAND\n";
+		state.command = DEFAULT;
 	}
-
-	return response;	
 }
 
 bool Server::recv_all(int sock, uint8_t* buf, size_t len) {
@@ -517,25 +517,15 @@ void Server::client_loop(int clientfd)
                     break;
 
                 size_t pos = std::distance(state.rx_buffer.begin(), it);
-				std::string response;
 				
 				try {
-					response = parse_msg(state, pos);
+					parse_msg(state, pos);
 				}
 				catch (const std::exception& e) {
 					std::cerr << "Failed to parse client message: " << e.what() << std::endl;
 				}
 
-				// send response
-				storage_manager.crypto_transit.encrypted_string_send(
-					response, 
-					[&](const uint8_t* data, size_t len) {
-						writer.write(data, len);
-					}, 
-					SESSION_KEY->key_buf
-				);
-
-				if (response == "200 BYE\n") {
+				if (state.command == QUIT) {
 					state.connected = false;
 					break;
 				}
@@ -551,7 +541,7 @@ void Server::client_loop(int clientfd)
 
 			case UPLOAD: {
 				
-				if (!upload_file(state)) continue;
+				if (!upload_file(state, clientfd)) continue;
 				break;
 			}
 

@@ -34,6 +34,8 @@ class Client
 			size_t in_bytes_remaining = 0;
 
 			bool connected = true;
+			bool cur_srvr_msg_handled = false;
+
 			std::vector<uint8_t> rx_buffer;
 
 			ClientStorageManager::DownloadHandle cur_download_handle;

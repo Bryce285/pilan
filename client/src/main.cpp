@@ -12,7 +12,8 @@
 #include "client.hpp"
 #include "crypto.hpp"
 
-int main() {
+int main() 
+{
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in server{};
@@ -80,15 +81,12 @@ int main() {
         total += static_cast<size_t>(sent);
     }
 
-	std::cout << "auth message sent" << std::endl;
-
 	Client client;
 	std::string cmd;
 	Client::ServerState state;
 
 	while (state.connected) {
-		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');	
-		std::cout << "Awaiting command: " << std::endl;
+		std::cout << "\033[1;32mfilebox-> \033[0m";
 		std::getline(std::cin, cmd);
 
 		// parse and send command to server
@@ -99,7 +97,7 @@ int main() {
 			std::cerr << "Command handling error: " << e.what() << std::endl;
 		}
 
-		std::cout << "cmd handled" << std::endl;
+		state.cur_srvr_msg_handled = false;
 
 		// handle server response
 		client.handle_server_msg(state, sock);
