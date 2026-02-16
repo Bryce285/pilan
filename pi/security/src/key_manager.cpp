@@ -4,7 +4,6 @@
 void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
 	if (std::filesystem::exists(MDK_PATH)) {
-
     	auto size = std::filesystem::file_size(MDK_PATH);
     	if (size != crypto_kdf_KEYBYTES) {
         	throw std::runtime_error("MDK error: incorrect file size");
@@ -41,27 +40,29 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 	}
 }
 
-void KeyManager::TMP_write_tak(uint8_t* tak)
+void KeyManager::print_tak(uint8_t tak[crypto_kdf_KEYBYTES])
 {
-	std::filesystem::path tak_path = "/home/bryce/projects/offlinePiFS/client/tak_tmp_path/tak.txt";
+    std::string border = 	"================================================================\n";
+    std::string label = 	"           Transfer Authentication Key (DO NOT SHARE)\n";
 
-	std::ofstream out_file(tak_path, std::ios::binary);
-	if (!out_file) {
-    	throw std::runtime_error("Failed to create/write tak file");
-	}
-	
-	// TODO - put this in a loop to make sure all data is written
-	out_file.write(reinterpret_cast<const char*>(tak), crypto_kdf_KEYBYTES); 
-	if (out_file.fail() || out_file.bad()) {
-		throw std::runtime_error("File error: Failed to write TAK to disk");
-	}
+    char hex[crypto_kdf_KEYBYTES * 2 + 1];
 
-	out_file.close();
+    sodium_bin2hex(
+        hex,
+        sizeof(hex),
+        tak,
+        crypto_kdf_KEYBYTES
+    );
+
+    std::cout << border
+              << label
+              << border
+              << hex << "\n"
+              << border;
 }
 
 // lock memory of key_out anytime this function is called
-// TODO - is_tak is for testing
-void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak)
+void KeyManager::derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak)
 {
 	if (crypto_kdf_derive_from_key(
 			key_out, 
@@ -72,5 +73,5 @@ void KeyManager::derive_key(const uint8_t* mdk, uint8_t* key_out, std::string co
 		throw std::runtime_error("Sodium error: Failed to derive key");
 	}
 	
-	if (is_tak) TMP_write_tak(key_out);
+	if (is_tak) print_tak(key_out);
 }

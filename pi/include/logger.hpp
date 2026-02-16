@@ -72,7 +72,7 @@ class Logger
 		std::mutex mutex;
 		bool logs_enabled = true;
 
-		static constexpr const char* log_path_ = "/home/bryce/projects/offlinePiFS/pi/data/logs/filebox.log";
+		static constexpr const char* log_path_ = "/data/logs/pilan.log";
 		static constexpr size_t log_max_bytes_ = 10240; // 10mb
 		size_t log_cur_bytes_ = 0;
 		int logfd_ = -1;

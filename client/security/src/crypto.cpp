@@ -1,5 +1,41 @@
 #include "crypto.hpp"
 
+void CryptoInTransit::write_tak(const std::string& tak)
+{
+	if (tak.size() % 2 != 0) {
+        throw std::runtime_error("Invalid hex string length");
+    }
+
+    std::vector<uint8_t> binary(tak.size() / 2);
+
+    size_t bin_len = 0;
+
+    if (sodium_hex2bin(
+            binary.data(),
+            binary.size(),
+            tak.c_str(),
+            tak.size(),
+            nullptr,
+            &bin_len,
+            nullptr) != 0) {
+
+        throw std::runtime_error("Invalid hex string");
+    }
+
+    std::ofstream outfile(TAK_PATH, std::ios::binary);
+    if (!outfile) {
+        throw std::runtime_error("Failed to open file: " + TAK_PATH.string());
+    }
+
+    outfile.write(reinterpret_cast<const char*>(binary.data()), bin_len);
+
+    if (!outfile) {
+        throw std::runtime_error("Failed to write binary data");
+    }
+
+	sodium_memzero(binary.data(), binary.size());
+}
+
 // mlock key_buf anytime this function is used
 void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {

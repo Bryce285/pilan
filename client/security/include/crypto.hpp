@@ -12,7 +12,8 @@ class CryptoInTransit
 {
     public:
 		using DataSink = std::function<void(const uint8_t* data, size_t len)>;
-        
+       	
+		static void write_tak(const std::string& tak); 
         static void load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES]);
         void get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce);
 		static void derive_session_key(uint8_t* key_buf);
@@ -24,6 +25,9 @@ class CryptoInTransit
 
     private:
 
-        // TODO - TAK storage as plaintext is for testing only, should be replaced by some kind of config file
-        inline static const std::filesystem::path TAK_PATH = "/home/bryce/projects/offlinePiFS/client/tak_tmp_path/tak.txt";
+        // TODO - TAK storage as plaintext is for testing only, should be replaced
+		// by something more secure
+		// we could also just make users input the tak manually every time
+		// but thats annoying as shit
+        inline static const std::filesystem::path TAK_PATH = "/home/bryce/projects/offlinePiFS/client/tak_tmp_path/pilan.tak";
 };

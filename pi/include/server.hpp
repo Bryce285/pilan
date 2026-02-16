@@ -55,10 +55,10 @@ class Server
         std::unique_ptr<SecureKey> SESSION_KEY;
 		
 		ServerStorageManager::StorageConfig config {
-			.root = "/home/bryce/projects/offlinePiFS/pi/data/", 
-			.files_dir = "/home/bryce/projects/offlinePiFS/pi/data/files/", 
-			.tmp_dir = "/home/bryce/projects/offlinePiFS/pi/data/tmp/", 
-			.meta_dir = "/home/bryce/projects/offlinePiFS/pi/data/meta/",
+			.root = "/data/", 
+			.files_dir = "/data/files/", 
+			.tmp_dir = "/data/tmp/", 
+			.meta_dir = "/data/meta/",
 			.max_file_size = 1000000000, // 1GB
 			.max_total_size = 10000000000, // 10GB
 			.read_only = false

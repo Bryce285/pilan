@@ -6,8 +6,6 @@
 
 #pragma once
 
-// TODO - the TAK should be manually shared between the server and client device, but we need to figure out a protocol for this (ex: USB, manually transfered config file, etc.)
-
 class KeyManager
 {
     public:
@@ -16,11 +14,10 @@ class KeyManager
 
         static void load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES]);
 
-		static void derive_key(const uint8_t* mdk, uint8_t* key_out, std::string context, uint64_t subkey_id, bool is_tak);
+		static void derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
-        inline static const std::filesystem::path MDK_PATH = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/mdk.txt";
+		inline static const std::filesystem::path MDK_PATH = "/data/mdk/pilan.mdk";
 		
-		// TODO - this is a temp function for testing
-		static void TMP_write_tak(uint8_t* tak);
+		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };

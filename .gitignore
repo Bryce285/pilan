@@ -22,3 +22,6 @@
 # Ignore OS-specific junk
 .DS_Store
 Thumbs.db
+
+#ignore nlohmann/json header
+json.hpp

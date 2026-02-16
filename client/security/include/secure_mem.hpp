@@ -6,7 +6,6 @@
 struct SecureKey {
 	uint8_t key_buf[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
 	
-	// for session key
     SecureKey() {
 		CryptoInTransit::derive_session_key(key_buf);	
 		

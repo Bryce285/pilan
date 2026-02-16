@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -12,8 +13,36 @@
 #include "client.hpp"
 #include "crypto.hpp"
 
-int main() 
+int main(int argc, char* argv[]) 
 {
+	bool key_flag_set = false;
+	if (argc == 2 && (std::strcmp(argv[1], "-f") == 0)) {
+		key_flag_set = true;
+	}
+	else if (argc > 1) {
+		std::cerr << "Usage: " << argv[0] << " [-f]" << std::endl;
+		exit(1);
+	}
+	
+	if (sodium_init() < 0) {
+		std::cerr << "Failed to initialize libsodium" << std::endl;
+		exit(1);
+	}
+	
+	if (key_flag_set) {
+		std::string tak;
+		std::cout << "Enter your Transfer Authentication Key: ";
+		std::getline(std::cin, tak);
+		
+		try {
+			CryptoInTransit::write_tak(tak);
+		}
+		catch (const std::exception& e) {
+			std::cerr << "Failed to write Transfer Authentication Key to file: " << e.what() << std::endl;
+			exit(1);
+		}
+	}
+
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in server{};
@@ -23,7 +52,7 @@ int main()
 
     if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
         std::cerr << "Connection failed\n";
-        return 1;
+        exit(1);
     }
 
 	int flags = fcntl(sock, F_GETFL, 0);
@@ -77,7 +106,6 @@ int main()
             throw std::runtime_error("Failed to send authentication message");
         }
 
-		// TODO - always cast when mixing ssize_t and size_t
         total += static_cast<size_t>(sent);
     }
 
@@ -86,10 +114,9 @@ int main()
 	Client::ServerState state;
 
 	while (state.connected) {
-		std::cout << "\033[1;32mfilebox-> \033[0m";
+		std::cout << "\033[1;32mpilan\033[0m-> ";
 		std::getline(std::cin, cmd);
 
-		// parse and send command to server
 		try {
 			client.handle_cmd(state, cmd, sock);
 		}
@@ -99,7 +126,6 @@ int main()
 
 		state.cur_srvr_msg_handled = false;
 
-		// handle server response
 		client.handle_server_msg(state, sock);
 	}
 
