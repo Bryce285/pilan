@@ -1,6 +1,5 @@
 ### TODO
-* figure out compilation stuff
-* make custom linux image
+* get linux image working
 * test
 * MVP COMPLETE
 

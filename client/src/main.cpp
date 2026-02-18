@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <thread>
 #include <chrono>
+#include <netdb.h>
 
 #include <sodium.h>
 
@@ -43,17 +44,33 @@ int main(int argc, char* argv[])
 		}
 	}
 
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+	struct addrinfo hints{}, *res;
+	
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
 
-    sockaddr_in server{};
-    server.sin_family = AF_INET;
-    server.sin_port = htons(8080);
-    inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
+	int status = getaddrinfo("pilan.local", "8080", &hints, &res);
+	if (status != 0) {
+		std::cerr << "getaddrinfo: " << gai_strerror(status) << std::endl;
+		exit(1);
+	}
 
-    if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
-        std::cerr << "Connection failed\n";
-        exit(1);
-    }
+	int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sock < 0) {
+		perror("socket");
+		freeaddrinfo(res);
+		exit(1);
+	}
+
+	if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
+		perror("connect");
+		freeaddrinfo(res);
+		close(sock);
+		exit(1);
+	}
+
+	freeaddrinfo(res);
 
 	int flags = fcntl(sock, F_GETFL, 0);
 	fcntl(sock, F_SETFL, flags | O_NONBLOCK);
