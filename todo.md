@@ -1,7 +1,6 @@
 ### TODO
-* get linux image working
+* get linux image working (remember to update image mdk before re-compiling)
 * test
 * MVP COMPLETE
 
 ### ISSUES
-* when list command is sent with no files on the server the client will wait forever

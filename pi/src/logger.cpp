@@ -10,12 +10,12 @@ Logger::Logger()
 	}
 
 	logfd_ = ::open(
-        log_path_,
+        log_path_.c_str(),
         O_WRONLY | O_CREAT | O_APPEND,
         0644
     );
 	if (logfd_ == -1) {
-		std::cerr << "Failed to open log file" << std::endl;
+		perror("open failed");
 	}
 
     log_cur_bytes_ = 0;
@@ -47,21 +47,32 @@ unsigned long long Logger::get_avail_storage()
 
 void Logger::log_rotate()
 {
-	if (!log_path_ || log_max_bytes_ == 0) return;
+	if (log_path_.empty() || log_max_bytes_ == 0) return;
     if (log_cur_bytes_ < log_max_bytes_) return;
+	
+	if (logfd_ != -1) {
+    	::close(logfd_);
+		logfd_ = -1;
+	}
 
-    ::close(logfd_);
+	std::filesystem::path rotated = log_path_;
+	rotated += ".1";
 
-    char rotated[256];
-    snprintf(rotated, sizeof(rotated), "%s.1", log_path_);
-
-    ::rename(log_path_, rotated);
+	std::error_code ec;
+	std::filesystem::rename(log_path_, rotated, ec);
+	if (ec) {
+		std::cerr << "Failed to rotate log: " << ec.message() << std::endl;
+	}
 
     logfd_ = ::open(
-        log_path_,
+        log_path_.c_str(),
         O_WRONLY | O_CREAT | O_TRUNC,
         0644
     );
+	if (logfd_ == -1) {
+		perror("Failed to open log file");
+		logs_enabled = false;
+	}
 
     log_cur_bytes_ = 0;
 }

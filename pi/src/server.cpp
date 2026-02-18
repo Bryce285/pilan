@@ -238,7 +238,8 @@ void Server::list_files(ClientState& state, int clientfd)
 	}
 
 	std::cout << "Attempting to send files list" << std::endl;
-    
+   	
+	if (message.empty()) message.append("\n");
     storage_manager.crypto_transit.encrypted_string_send(
 		message,  
 		[&](const uint8_t* data, size_t len) {

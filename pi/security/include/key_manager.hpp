@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include "paths.hpp"
 
 #pragma once
 
@@ -17,7 +18,11 @@ class KeyManager
 		static void derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
-		inline static const std::filesystem::path MDK_PATH = "/data/mdk/pilan.mdk";
+#if DEVPATHS
+		inline static std::filesystem::path MDK_PATH{DevPaths::mdk_path};
+#else
+		inline static std::filesystem::path MDK_PATH{ProdPaths::mdk_path};
+#endif
 		
 		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };

@@ -7,6 +7,7 @@
 #include <mutex>
 #include <sys/statvfs.h>
 #include <iostream>
+#include "paths.hpp"
 
 #pragma once
 
@@ -71,8 +72,13 @@ class Logger
 	private:
 		std::mutex mutex;
 		bool logs_enabled = true;
+		
+#if DEVPATHS
+		inline static const std::filesystem::path log_path_{DevPaths::log_path};
+#else
+		inline static const std::filesystem::path log_path_{ProdPaths::log_path};
+#endif
 
-		static constexpr const char* log_path_ = "/data/logs/pilan.log";
 		static constexpr size_t log_max_bytes_ = 10240; // 10mb
 		size_t log_cur_bytes_ = 0;
 		int logfd_ = -1;

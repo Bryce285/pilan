@@ -26,6 +26,7 @@
 #include "crypto.hpp"
 #include "secure_mem.hpp"
 #include "logger.hpp"
+#include "paths.hpp"
 
 #pragma once
 
@@ -55,10 +56,17 @@ class Server
         std::unique_ptr<SecureKey> SESSION_KEY;
 		
 		ServerStorageManager::StorageConfig config {
-			.root = "/data/", 
-			.files_dir = "/data/files/", 
-			.tmp_dir = "/data/tmp/", 
-			.meta_dir = "/data/meta/",
+#if DEVPATHS	
+			.root{DevPaths::strg_cfg_root}, 
+			.files_dir{DevPaths::strg_cfg_files}, 
+			.tmp_dir{DevPaths::strg_cfg_tmp}, 
+			.meta_dir{DevPaths::strg_cfg_meta},
+#else
+			.root{ProdPaths::strg_cfg_root}, 
+			.files_dir{ProdPaths::strg_cfg_files}, 
+			.tmp_dir{ProdPaths::strg_cfg_tmp}, 
+			.meta_dir{ProdPaths::strg_cfg_meta},
+#endif
 			.max_file_size = 1000000000, // 1GB
 			.max_total_size = 10000000000, // 10GB
 			.read_only = false
