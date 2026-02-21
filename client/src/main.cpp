@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
 #else
+	/*
 	struct addrinfo hints{}, *res;
 	
 	memset(&hints, 0, sizeof(hints));
@@ -84,6 +85,20 @@ int main(int argc, char* argv[])
 	}
 
 	freeaddrinfo(res);
+	*/
+	
+	// For static IP
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+	sockaddr_in server{};
+    server.sin_family = AF_INET;
+    server.sin_port = htons(8080);
+    inet_pton(AF_INET, "192.168.100.1", &server.sin_addr);
+
+	if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
+        std::cerr << "Connection failed\n";
+        exit(1);
+    }
 #endif
 
 	int flags = fcntl(sock, F_GETFL, 0);
