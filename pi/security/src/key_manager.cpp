@@ -61,6 +61,38 @@ void KeyManager::print_tak(uint8_t tak[crypto_kdf_KEYBYTES])
               << border;
 }
 
+void KeyManager::write_tak(uint8_t tak[crypto_kdf_KEYBYTES])
+{
+    std::string border = 	"================================================================\n";
+    std::string label = 	"           Transfer Authentication Key (DO NOT SHARE)\n";
+	
+    char hex[crypto_kdf_KEYBYTES * 2 + 1];
+
+    sodium_bin2hex(
+        hex,
+        sizeof(hex),
+        tak,
+        crypto_kdf_KEYBYTES
+    );
+	
+	std::ofstream out_file(TAK_PATH); 
+	out_file.exceptions(std::ios::failbit | std::ios::badbit);
+    if (!out_file) {
+        throw std::runtime_error("Failed to create TAK file");
+    }
+	
+	std::string header = border + label + border;
+
+	out_file.write(header.c_str(), header.size());
+    out_file.write(reinterpret_cast<const char*>(hex), crypto_kdf_KEYBYTES * 2);
+
+    if (!out_file) {
+        throw std::runtime_error("Failed to write TAK");
+    }
+
+    out_file.flush();
+}
+
 // lock memory of key_out anytime this function is called
 void KeyManager::derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak)
 {
@@ -73,5 +105,8 @@ void KeyManager::derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBY
 		throw std::runtime_error("Sodium error: Failed to derive key");
 	}
 	
-	if (is_tak) print_tak(key_out);
+	if (is_tak) {
+		print_tak(key_out);
+		write_tak(key_out);
+	}
 }

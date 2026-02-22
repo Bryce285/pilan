@@ -20,9 +20,12 @@ class KeyManager
     private:
 #if DEVPATHS
 		inline static std::filesystem::path MDK_PATH{DevPaths::mdk_path};
+		inline static std::filesystem::path TAK_PATH{DevPaths::tak_path};
 #else
 		inline static std::filesystem::path MDK_PATH{ProdPaths::mdk_path};
+		inline static std::filesystem::path TAK_PATH{ProdPaths::tak_path};
 #endif
 		
 		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
+		static void write_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };
