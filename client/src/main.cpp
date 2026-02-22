@@ -93,11 +93,14 @@ int main(int argc, char* argv[])
 	sockaddr_in server{};
     server.sin_family = AF_INET;
     server.sin_port = htons(8080);
-    inet_pton(AF_INET, "192.168.100.1", &server.sin_addr);
+    if (inet_pton(AF_INET, "192.168.100.1", &server.sin_addr) <= 0) {
+		std::cerr << "Invalid IP address\n";
+		exit(1);
+	}
 
 	if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
-        std::cerr << "Connection failed\n";
-        exit(1);
+        perror("Connect failed");
+		exit(1);
     }
 #endif
 

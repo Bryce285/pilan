@@ -121,5 +121,27 @@ description="Secure wireless file storage"
 ```
 * Now exit the file and make it executable with chmod +x pilan-srvr
 * Next run rc-update add pilan-srvr default to add the pilan server to the default run level.
+* You will also need to configure dnsmasq, otherwise other devices will probably not connect to the pi wifi. Create the file /etc/dnsmasq.conf and add:
+```
+interface=wlan0
+dhcp-range=192.168.100.2,192.168.100.10,12h
+```
+* Next, run:
+```
+rc-update add dnsmasq default
+/etc/init.d/dnsmasq start
+```
+* After rebooting, devices should be able to connect to the pi network.
+* Now we need to add some folders to that the pilan service can run correctly. In the root directory, run:
+```
+mkdir data
+cd data
+mkdir logs
+mkdir files
+mkdir tmp
+mkdir meta
+mkdir mdk
+```
+* Make sure the pilan server is statically compiled.
 
 TODO - access point now starts at boot. we now just need to add the pilan service and make that also start at boot, and then confirm that clients can connect and file transfers work, etc.

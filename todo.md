@@ -1,5 +1,5 @@
 ### TODO
-* get linux image working (remember to update image mdk before re-compiling)
+* get rid of all server prints to stdout and just write mdk as hex to a separate file instead of printing it to the screen.
 * test
 * MVP COMPLETE
 

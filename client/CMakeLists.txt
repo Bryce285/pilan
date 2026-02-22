@@ -4,7 +4,7 @@ project(offlinePiFS VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-add_compile_definitions(LOCALTEST=1)
+add_compile_definitions(LOCALTEST=0)
 
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
