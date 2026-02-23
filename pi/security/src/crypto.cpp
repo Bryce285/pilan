@@ -4,10 +4,6 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_encrypt_init(int fd_
 {
     auto stream = std::make_unique<SecureSecretstreamState>();
     uint8_t header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-	
-	for (int i = 0; i < 4; ++i)
-    	printf("%02x ", fek[i]);
-	printf("\n");
 
     if (crypto_secretstream_xchacha20poly1305_init_push(
 			&stream->state, 
@@ -35,10 +31,6 @@ void CryptoAtRest::encrypt_chunk(int fd_out, std::unique_ptr<SecureSecretstreamS
         ? crypto_secretstream_xchacha20poly1305_TAG_FINAL
         : 0;
 	
-	if (FINAL_CHUNK) {
-		std::cout << "Final chunk" << std::endl;
-	}
-
     if (crypto_secretstream_xchacha20poly1305_push(
             &stream->state,
             ciphertext.data(),
@@ -100,10 +92,6 @@ std::unique_ptr<SecureSecretstreamState> CryptoAtRest::file_decrypt_init(int fd_
 
 	read_exact(fd_in, header, sizeof(header));
 	
-	for (int i = 0; i < 4; ++i)
-    	printf("%02x ", fek[i]);
-	printf("\n");
-
     if (crypto_secretstream_xchacha20poly1305_init_pull(
 			&stream->state, 
 			header, 
@@ -135,8 +123,6 @@ void CryptoAtRest::decrypt_chunk(int fd_in, std::unique_ptr<SecureSecretstreamSt
 
         unsigned long long plaintext_len = 0;
         uint8_t tag = 0;
-		
-		std::cout << "Ciphertext len: " << ciphertext_len << std::endl;
 
         if (crypto_secretstream_xchacha20poly1305_pull(
                 &stream->state,

@@ -33,8 +33,6 @@ bool Server::authenticate(int clientfd)
 		total_nonce += sent;
 	}
 
-	std::cout << "Nonce sent" << std::endl;
-
 	std::vector<uint8_t> rx_buffer;
 	uint8_t buf[16384];
     
@@ -43,7 +41,6 @@ bool Server::authenticate(int clientfd)
 	while (total_tag < crypto_auth_hmacsha256_BYTES) {
 		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 		if (now > auth_deadline) {
-			std::cout << "Authentication timeout" << std::endl;
 			return false;
 		}
 
@@ -92,8 +89,6 @@ bool Server::authenticate(int clientfd)
 		return false;
 	}
    	
-	std::cout << "auth tag recv success" << std::endl;
-
 	std::vector<uint8_t> rx_auth_tag;
 	rx_auth_tag.insert(
     	rx_auth_tag.end(),
@@ -125,8 +120,6 @@ bool Server::authenticate(int clientfd)
 	SESSION_KEY = std::make_unique<SecureKey>(KeyType::SESSION, TAK->key_buf);		
 	storage_manager.set_session_key(*SESSION_KEY);
 
-	std::cout << "session key derivation success" << std::endl;
-   	
 	/* 
 	std::string message = "200 AUTH OK\n";
     storage_manager.crypto_transit.encrypted_string_send(
@@ -143,8 +136,6 @@ bool Server::authenticate(int clientfd)
 
 bool Server::upload_file(ClientState& state, int clientfd)
 {
-	std::cout << "Entered upload function" << std::endl;
-
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
 
 	if (to_write > 0) {
@@ -237,8 +228,6 @@ void Server::list_files(ClientState& state, int clientfd)
 		std::cerr << "Failed to get file list: " << e.what() << std::endl;
 	}
 
-	std::cout << "Attempting to send files list" << std::endl;
-   	
 	if (message.empty()) message.append("\n");
     storage_manager.crypto_transit.encrypted_string_send(
 		message,  
@@ -249,9 +238,6 @@ void Server::list_files(ClientState& state, int clientfd)
 	);
 	
 	logger.log_event(Logger::LogEvent::FILE_LIST);
-
-	std::cout << "Files list sent" << std::endl;
-	std::cout << message << std::endl;
 
 	state.command = DEFAULT;
 }
@@ -286,8 +272,6 @@ void Server::delete_file(ClientState& state, int clientfd)
 
 void Server::parse_msg(ClientState& state, size_t pos)
 {
-	std::cout << "Entered message parsing function" << std::endl;
-
 	std::string line(
             reinterpret_cast<const char*>(state.rx_buffer.data()),
             pos
@@ -307,15 +291,12 @@ void Server::parse_msg(ClientState& state, size_t pos)
 	 	* LIST
 	 	* lists all files that are stored on the Pi
  		*/
-		std::cout << "[INFO] Command recieved: LIST" << std::endl;
-		
 		std::istringstream iss(line);
 		std::string cmd;
 		iss >> cmd;
 
 		std::string extra;
 		if (iss >> extra) {
-			std::cout << "extra input: " << extra << std::endl;
 			throw std::runtime_error("Unexpected extra input");
 		}
 	
@@ -327,8 +308,6 @@ void Server::parse_msg(ClientState& state, size_t pos)
 		* UPLOAD <filename> <filesize_bytes>\n <binary data>
 		* upload a file to the Pi
 		*/
-		std::cout << "[INFO] Command recieved: UPLOAD" << std::endl;
-
 		std::istringstream iss(line);
 		std::string cmd;
 		std::string filename;
@@ -366,8 +345,6 @@ void Server::parse_msg(ClientState& state, size_t pos)
 		* DOWNLOAD <filename>
 		* download a file from the Pi
 		*/
-		std::cout << "[INFO] Command recieved: DOWNLOAD" << std::endl;
-
 		std::istringstream iss(line);
 		std::string cmd;
 		std::string filename;
@@ -392,8 +369,6 @@ void Server::parse_msg(ClientState& state, size_t pos)
 		* DELETE <filename>
 		* delete a file from the Pi
 		*/
-		std::cout << "[INFO] Command recieved: DELETE" << std::endl;
-		
 		std::istringstream iss(line);
 		std::string cmd;
 		std::string filename;
@@ -411,8 +386,6 @@ void Server::parse_msg(ClientState& state, size_t pos)
 		state.command = DELETE;
 	}
 	else if (line == "QUIT") {	
-		std::cout << "[INFO] Command recieved: QUIT" << std::endl;
-		
 		std::istringstream iss(line);
 		std::string cmd;	
 		iss >> cmd;
@@ -425,7 +398,6 @@ void Server::parse_msg(ClientState& state, size_t pos)
 		state.command = QUIT;
 	}
 	else {
-		std::cout << "[INFO] Command recieved: UNKNOWN" << std::endl;
 		state.command = DEFAULT;
 	}
 }
@@ -494,8 +466,6 @@ void Server::client_loop(int clientfd)
     SocketStreamWriter writer(clientfd);
 	ClientState state;
 	
-	std::cout << "entered client loop, " << state.connected << ", " << state.command << std::endl;
-	
 	while (state.connected) {
         
         std::vector<uint8_t> plaintext_buf;
@@ -503,7 +473,6 @@ void Server::client_loop(int clientfd)
         state.rx_buffer.insert(state.rx_buffer.end(), plaintext_buf.begin(), plaintext_buf.end());
 		
 		if (!msg_ok) {
-			std::cout << "message not ok" << std::endl;
 			state.connected = false;
 			break;
 		}
@@ -566,8 +535,6 @@ void Server::client_loop(int clientfd)
 
 	if (state.file_fd >= 0)
 		close(state.file_fd);
-
-	std::cout << "Leaving client loop" << std::endl;
 }
 
 void Server::handle_client(int clientfd)

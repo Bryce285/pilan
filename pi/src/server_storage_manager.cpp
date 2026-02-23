@@ -260,8 +260,6 @@ void ServerStorageManager::data_to_send(uint8_t* data, size_t len, StreamWriter&
 
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
-	std::cout << "Entered stream_file()" << std::endl;
-
 	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	
@@ -281,8 +279,6 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		throw std::runtime_error("Sodium error: Failed to initialize file decryption");
 	}
 	
-	std::cout << "Before decrypt_chunk: " << decrypt_state.get() << std::endl;
-
     crypto_rest.decrypt_chunk(
 		fd, 
 		decrypt_state, 
@@ -291,8 +287,6 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		}, 
 		writer
 	);
-
-	std::cout << "After decrypt_chunk: " << decrypt_state.get() << std::endl;
 
 	// close file
 	writer.flush();

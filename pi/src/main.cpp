@@ -81,8 +81,6 @@ int main()
 		exit(1);
 	}
 
-	std::cout << "Server is listening on port 8080\n" << std::endl;
-
 	// wait for connection	
 	while (!quit) {
 		
@@ -107,10 +105,6 @@ int main()
 			std::chrono::steady_clock::now()
 		};
 
-		std::cout 	<< "[INFO] Connection from " << connection.ip 
-					<< " on port " << connection.port << " with file descriptor "
-					<< connection.fd << std::endl;
-		
 		logger.log_event(Logger::LogEvent::CLIENT_CONNECT);
 
 		std::thread t(&Server::handle_client, &server, clientfd);
