@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include "paths.hpp"
+#include <vector>
 
 #pragma once
 
@@ -18,9 +19,9 @@ class KeyManager
 		static void derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
-        constexpr size_t SALT_SIZE = 16;
-        constexpr size_t NONCE_SIZE = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
-        constexpr const char* HEADER = "MDK1";
+        constexpr static size_t SALT_SIZE = 16;
+        constexpr static size_t NONCE_SIZE = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
+        constexpr static const char* HEADER = "MDK1";
 
 #if DEVPATHS
 		inline static std::filesystem::path MDK_PATH{DevPaths::mdk_path};
