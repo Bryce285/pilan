@@ -18,14 +18,15 @@ class KeyManager
 		static void derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
+        constexpr size_t SALT_SIZE = 16;
+        constexpr size_t NONCE_SIZE = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
+        constexpr const char* HEADER = "MDK1";
+
 #if DEVPATHS
 		inline static std::filesystem::path MDK_PATH{DevPaths::mdk_path};
-		inline static std::filesystem::path TAK_PATH{DevPaths::tak_path};
 #else
 		inline static std::filesystem::path MDK_PATH{ProdPaths::mdk_path};
-		inline static std::filesystem::path TAK_PATH{ProdPaths::tak_path};
 #endif
 		
 		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
-		static void write_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };

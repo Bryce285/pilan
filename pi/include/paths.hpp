@@ -15,7 +15,6 @@ namespace DevPaths
 	inline const std::filesystem::path strg_cfg_meta = "/home/bryce/projects/offlinePiFS/pi/data/meta/";
 
 	inline const std::filesystem::path mdk_path = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/pilan.mdk";	
-	inline const std::filesystem::path tak_path = "/home/bryce/projects/offlinePiFS/pi/tak_tmp_path/pilan.tak";
 }
 
 /*
@@ -31,5 +30,4 @@ namespace ProdPaths
 	inline const std::filesystem::path strg_cfg_meta = "/data/meta/";
 
 	inline const std::filesystem::path mdk_path = "/data/mdk/pilan.mdk";
-	inline const std::filesystem::path tak_path = "/data/tak/pilan.tak";
 }
