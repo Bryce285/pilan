@@ -14,6 +14,7 @@ pkg_check_modules(SODIUM REQUIRED libsodium)
 
 add_executable(client
 	src/main.cpp
+	src/paths.cpp
 	src/client.cpp
 	src/client_storage_manager.cpp
 	security/src/crypto.cpp	

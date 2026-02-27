@@ -23,11 +23,7 @@ class KeyManager
         constexpr static size_t NONCE_SIZE = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
         constexpr static const char* HEADER = "MDK1";
 
-#if DEVPATHS
-		inline static std::filesystem::path MDK_PATH{DevPaths::mdk_path};
-#else
-		inline static std::filesystem::path MDK_PATH{ProdPaths::mdk_path};
-#endif
+		inline static std::filesystem::path MDK_PATH{PathMgr::mdk_path};
 		
 		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };

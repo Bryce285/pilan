@@ -21,60 +21,31 @@ void CryptoInTransit::write_tak(const std::string& tak)
 
         throw std::runtime_error("Invalid hex string");
     }
-
-    std::ofstream outfile(TAK_PATH, std::ios::binary);
-    if (!outfile) {
-        throw std::runtime_error("Failed to open file: " + TAK_PATH.string());
-    }
-
-    outfile.write(reinterpret_cast<const char*>(binary.data()), bin_len);
-
-    if (!outfile) {
-        throw std::runtime_error("Failed to write binary data");
-    }
-
+	
+	encrypt_tak(binary.data());
 	sodium_memzero(binary.data(), binary.size());
 }
 
+/*
+	TODO - there are a lot of instances where the wrong KEYBYTES constant is used.
+	It works because crypto_kdf_KEYBYTES and crypto_aead_xchacha20poly1305_ietf_KEYBYTES
+	are the same size, but for clarity the correct constant should be used.
+*/
 // mlock key_buf anytime this function is used
 void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
     if (std::filesystem::exists(TAK_PATH)) {
-        std::ifstream in_file(TAK_PATH, std::ios::binary);
-        if (!in_file) {
-            throw std::runtime_error("File error: Failed to open " + TAK_PATH.string());
-        }
-       
-	   	auto size = std::filesystem::file_size(TAK_PATH); 
-
-		if (size != crypto_kdf_KEYBYTES) {
-            throw std::runtime_error("TAK error: Transfer authentication key does not have expected size");
-        }
-        
-        in_file.read(reinterpret_cast<char*>(key_buf), crypto_kdf_KEYBYTES);
-		if (in_file.fail() || in_file.bad()) {
-			throw std::runtime_error("File error: Failed to read transfer authentication key from disk");
-		}
-
-        std::streamsize bytes_read = in_file.gcount();
-        if (bytes_read != crypto_kdf_KEYBYTES) {
-            throw std::runtime_error("TAK error: Wrong number of bytes read");
-        }
-
-        in_file.close();
-    }
-    else {
+    	decrypt_tak(key_buf);
+	}
+	else {
         throw std::runtime_error("TAK error: Transfer authentication key not found");
     }
 }
 
-void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
+void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce, uint8_t tak[crypto_kdf_KEYBYTES])
 {
     // out_buf should be sized with the constant crypto_auth_hmacsha256_BYTES
-    
-	uint8_t tak[crypto_kdf_KEYBYTES];
-	load_tak(tak); // don't need to mlock tak here because it only exists for this function call
-    
+	
 	if (crypto_auth_hmacsha256(
 			out_buf, 
 			server_nonce, 
@@ -85,11 +56,8 @@ void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce)
 }
 
 // mlock key_buf anytime this function is used
-void CryptoInTransit::derive_session_key(uint8_t* key_buf)
+void CryptoInTransit::derive_session_key(uint8_t* key_buf, uint8_t tak[crypto_kdf_KEYBYTES])
 {
-	uint8_t tak[crypto_kdf_KEYBYTES];
-    load_tak(tak); // don't need to mlock tak here because it only exists for this function call
-
 	if (crypto_kdf_derive_from_key(
 			key_buf,
 			crypto_aead_xchacha20poly1305_ietf_KEYBYTES,
@@ -179,5 +147,108 @@ void CryptoInTransit::encrypted_string_send(std::string message, DataSink on_mes
 	}
 	catch (const std::exception& e) {
 		std::cerr << "Failed to send encrypted string: " << e.what() << std::endl;
+	}
+}
+
+void CryptoInTransit::encrypt_tak(uint8_t key_buf[crypto_aead_xchacha20poly1305_ietf_KEYBYTES])
+{
+	uint8_t salt[SALT_SIZE];
+	uint8_t nonce[NONCE_SIZE];
+	randombytes_buf(salt, sizeof(salt));
+	randombytes_buf(nonce, sizeof(nonce));
+
+	std::string passphrase, passphrase_confirm;
+	std::cout << "Enter a passphrase to protect your transfer authentication key. This can be the same or different as your master key passphrase: ";
+	std::getline(std::cin, passphrase);
+	std::cout << "Confirm passphrase: ";
+	std::getline(std::cin, passphrase_confirm);
+	if (passphrase != passphrase_confirm) {
+		throw std::runtime_error("Passphrase mismatch");
+	}
+
+	uint8_t kdf_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
+	if (crypto_pwhash(kdf_key, sizeof(kdf_key),
+						passphrase.c_str(), passphrase.size(),
+						salt,
+						crypto_pwhash_OPSLIMIT_MODERATE,
+						crypto_pwhash_MEMLIMIT_MODERATE,
+						crypto_pwhash_ALG_ARGON2ID13) != 0) {
+		throw std::runtime_error("KDF derivation failed");
+	}
+
+	std::vector<uint8_t> enc_key(crypto_kdf_KEYBYTES + crypto_aead_xchacha20poly1305_ietf_ABYTES);
+	unsigned long long enc_len;
+	crypto_aead_xchacha20poly1305_ietf_encrypt(
+			enc_key.data(), &enc_len,
+			key_buf, crypto_kdf_KEYBYTES,
+			nullptr, 0,
+			nullptr,
+			nonce,
+			kdf_key
+	);
+
+	std::ofstream out_file(TAK_PATH, std::ios::binary);
+	out_file.exceptions(std::ios::failbit | std::ios::badbit);
+	if (!out_file) {
+		throw std::runtime_error("Failed to create TAK file");
+	}
+
+	out_file.write(HEADER, 4);
+	out_file.write(reinterpret_cast<const char*>(salt), SALT_SIZE);
+	out_file.write(reinterpret_cast<const char*>(nonce), NONCE_SIZE);
+	out_file.write(reinterpret_cast<const char*>(enc_key.data()), enc_key.size());
+	out_file.flush();
+
+	if (!out_file) {
+		throw std::runtime_error("Failed to write encrypted TAK");
+	}
+}
+
+void CryptoInTransit::decrypt_tak(uint8_t out_buf[crypto_aead_xchacha20poly1305_ietf_KEYBYTES])
+{
+	std::ifstream in_file(TAK_PATH, std::ios::binary);
+	if (!in_file) {
+		throw std::runtime_error("Failed to open TAK file");
+	}
+
+	char header[4];
+	in_file.read(header, 4);
+	if (std::string(header, 4) != HEADER) {
+		throw std::runtime_error("Invalid TAK header");
+	}
+
+	uint8_t salt[SALT_SIZE];
+	in_file.read(reinterpret_cast<char*>(salt), SALT_SIZE);
+
+	uint8_t nonce[NONCE_SIZE];
+	in_file.read(reinterpret_cast<char*>(nonce), NONCE_SIZE);
+
+	std::vector<uint8_t> enc_key(crypto_kdf_KEYBYTES + crypto_aead_xchacha20poly1305_ietf_ABYTES);
+	in_file.read(reinterpret_cast<char*>(enc_key.data()), enc_key.size());
+	if (in_file.gcount() != enc_key.size()) {
+		throw std::runtime_error("Incomplete TAK file");
+	}
+
+	std::string passphrase;
+	std::cout << "Enter passphrase to unlock transfer authentication key: ";
+	std::getline(std::cin, passphrase);
+
+	uint8_t kdf_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
+	if (crypto_pwhash(kdf_key, sizeof(kdf_key),
+						passphrase.c_str(), passphrase.size(),
+						salt,
+						crypto_pwhash_OPSLIMIT_MODERATE,
+						crypto_pwhash_MEMLIMIT_MODERATE,
+						crypto_pwhash_ALG_ARGON2ID13) != 0) {
+		throw std::runtime_error("KDF derivation failed");
+	}
+
+	if (crypto_aead_xchacha20poly1305_ietf_decrypt(
+				out_buf, nullptr,
+				nullptr,
+				enc_key.data(), enc_key.size(),
+				nullptr, 0,
+				nonce, kdf_key) != 0) {
+		throw std::runtime_error("Failed to decrypt TAK: incorrect passphrase or corrupted file");
 	}
 }

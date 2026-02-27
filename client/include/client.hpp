@@ -14,12 +14,15 @@
 #include "socket_stream_writer.hpp"
 #include "crypto.hpp"
 #include "secure_mem.hpp"
+#include "paths.hpp"
 
 #pragma once
 
 class Client
 {
-	public:	
+	public:
+		explicit Client(SecureKey& tak) : TAK(tak) {}
+
 		enum Command
 		{
 			DEFAULT,
@@ -46,14 +49,15 @@ class Client
 
 	private:
 		ClientStorageManager::StorageConfig config {
-			.downloads_dir = "/home/bryce/projects/offlinePiFS/client/local_storage_test",
-			.tmp_dir = "/home/bryce/projects/offlinePiFS/client/local_storage_test/tmp"
+			.downloads_dir{PathMgr::downloads_dir},
+			.tmp_dir{PathMgr::tmp_dir} 
 		};
 
 		ClientStorageManager storage_manager{config};
         CryptoInTransit crypto_transit;
        	
-       	std::unique_ptr<SecureKey> session_key = std::make_unique<SecureKey>();  
+		SecureKey& TAK;
+       	std::unique_ptr<SecureKey> session_key = std::make_unique<SecureKey>(KeyType::SESSION, TAK.key_buf);  
 
         bool recv_all(int sock, uint8_t* buf, size_t len);
         bool recv_encrypted_msg(int sock, uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);

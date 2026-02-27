@@ -1,33 +1,20 @@
 #include <filesystem>
+#include <iostream>
 
 #pragma once
 
-/*
-	These paths are for testing on a dev machine. Put whatever you want here
-*/
-namespace DevPaths
+class PathMgr
 {
-	inline const std::filesystem::path log_path = "/home/bryce/projects/offlinePiFS/pi/data/logs/pilan.log";
-
-	inline const std::filesystem::path strg_cfg_root = "/home/bryce/projects/offlinePiFS/pi/data/";
-	inline const std::filesystem::path strg_cfg_files = "/home/bryce/projects/offlinePiFS/pi/data/files/";
-	inline const std::filesystem::path strg_cfg_tmp = "/home/bryce/projects/offlinePiFS/pi/data/tmp/";
-	inline const std::filesystem::path strg_cfg_meta = "/home/bryce/projects/offlinePiFS/pi/data/meta/";
-
-	inline const std::filesystem::path mdk_path = "/home/bryce/projects/offlinePiFS/pi/mdk_tmp_path/pilan.mdk";	
-}
-
-/*
-	These paths are for the pi filesystem
-*/
-namespace ProdPaths
-{
-	inline const std::filesystem::path log_path = "/data/logs/pilan.log";
+	public:
+				
+		inline static const std::filesystem::path log_path = "/data/logs/pilan.log";
 	
-	inline const std::filesystem::path strg_cfg_root = "/data/";
-	inline const std::filesystem::path strg_cfg_files = "/data/files/";
-	inline const std::filesystem::path strg_cfg_tmp = "/data/tmp/";
-	inline const std::filesystem::path strg_cfg_meta = "/data/meta/";
+		inline static const std::filesystem::path strg_cfg_root = "/data/";
+		inline static const std::filesystem::path strg_cfg_files = "/data/files/";
+		inline static const std::filesystem::path strg_cfg_tmp = "/data/tmp/";
+		inline static const std::filesystem::path strg_cfg_meta = "/data/meta/";
 
-	inline const std::filesystem::path mdk_path = "/data/mdk/pilan.mdk";
-}
+		inline static const std::filesystem::path mdk_path = "/data/mdk/pilan.mdk";
+
+		static bool mkdirs();
+};

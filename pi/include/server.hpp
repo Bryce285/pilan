@@ -56,17 +56,10 @@ class Server
         std::unique_ptr<SecureKey> SESSION_KEY;
 		
 		ServerStorageManager::StorageConfig config {
-#if DEVPATHS	
-			.root{DevPaths::strg_cfg_root}, 
-			.files_dir{DevPaths::strg_cfg_files}, 
-			.tmp_dir{DevPaths::strg_cfg_tmp}, 
-			.meta_dir{DevPaths::strg_cfg_meta},
-#else
-			.root{ProdPaths::strg_cfg_root}, 
-			.files_dir{ProdPaths::strg_cfg_files}, 
-			.tmp_dir{ProdPaths::strg_cfg_tmp}, 
-			.meta_dir{ProdPaths::strg_cfg_meta},
-#endif
+			.root{PathMgr::strg_cfg_root}, 
+			.files_dir{PathMgr::strg_cfg_files}, 
+			.tmp_dir{PathMgr::strg_cfg_tmp}, 
+			.meta_dir{PathMgr::strg_cfg_meta},
 			.max_file_size = 1000000000, // 1GB
 			.max_total_size = 10000000000, // 10GB
 			.read_only = false

@@ -73,11 +73,7 @@ class Logger
 		std::mutex mutex;
 		bool logs_enabled = true;
 		
-#if DEVPATHS
-		inline static const std::filesystem::path log_path_{DevPaths::log_path};
-#else
-		inline static const std::filesystem::path log_path_{ProdPaths::log_path};
-#endif
+		inline static const std::filesystem::path log_path_{PathMgr::log_path};
 
 		static constexpr size_t log_max_bytes_ = 10240; // 10mb
 		size_t log_cur_bytes_ = 0;

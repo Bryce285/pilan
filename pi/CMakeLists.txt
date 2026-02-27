@@ -1,5 +1,3 @@
-# THIS CMAKELISTS IS FOR COMPILATION ON DEV MACHINE
-
 cmake_minimum_required(VERSION 3.10)
 
 project(offlinePiFS VERSION 1.0 LANGUAGES CXX)
@@ -10,13 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
-add_compile_definitions(DEVPATHS=1)
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SODIUM REQUIRED libsodium)
 
 add_executable(server
     src/main.cpp
+	src/paths.cpp
 	src/server.cpp
     src/server_storage_manager.cpp
 	src/logger.cpp

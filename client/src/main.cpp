@@ -13,9 +13,14 @@
 
 #include "client.hpp"
 #include "crypto.hpp"
+#include "paths.hpp"
 
 int main(int argc, char* argv[]) 
 {
+	if (!PathMgr::mkdirs()) {
+		exit(1);
+	}
+
 	bool key_flag_set = false;
 	if (argc == 2 && (std::strcmp(argv[1], "-f") == 0)) {
 		key_flag_set = true;
@@ -129,9 +134,11 @@ int main(int argc, char* argv[])
     }
     
 	constexpr std::string_view auth_keyword = "AUTH";
+	
+	std::unique_ptr<SecureKey> TAK = std::make_unique<SecureKey>(KeyType::TRANSFER_AUTH);
 
 	uint8_t auth_tag[crypto_auth_hmacsha256_BYTES];
-	crypto_transit.get_auth_tag(auth_tag, server_nonce);
+	crypto_transit.get_auth_tag(auth_tag, server_nonce, TAK->key_buf);
 	
 	std::vector<uint8_t> auth_msg;
 	auth_msg.reserve(auth_keyword.size() + sizeof(auth_tag));
@@ -158,7 +165,7 @@ int main(int argc, char* argv[])
         total += static_cast<size_t>(sent);
     }
 
-	Client client;
+	Client client{*TAK};
 	std::string cmd;
 	Client::ServerState state;
 

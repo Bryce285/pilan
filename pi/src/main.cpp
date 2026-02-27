@@ -23,6 +23,7 @@
 #include "server.hpp"
 #include "key_manager.hpp"
 #include "logger.hpp"
+#include "paths.hpp"
 
 // for logging connections
 struct ClientConnection 
@@ -40,6 +41,10 @@ int main()
         exit(1);
     }
 	
+	if (!PathMgr::mkdirs()) {
+		exit(1);
+	}
+
 	Logger logger;
 	Server server(logger);
 	
