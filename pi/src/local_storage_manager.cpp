@@ -23,7 +23,7 @@ void LocalStorageManager::local_encrypt(const std::string& src, const std::strin
         throw std::runtime_error("init_push failed");
     }
 
-    cosnt size_t BUF_SIZE = 4096;
+    const size_t BUF_SIZE = 4096;
     std::vector<uint8_t> buffer(BUF_SIZE);
 
     while (true) {
@@ -84,8 +84,8 @@ void LocalStorageManager::local_decrypt(const std::string& src, const std::strin
     crypto_rest.decrypt_chunk(
         src_fd,
         stream,
-        [](uint8_t* data, size_t len, StreamWriter& writer) {
-            writer.write(data, len);
+        [](uint8_t* data, size_t len, StreamWriter& writer_l) {
+            writer_l.write(data, len);
         },
         writer
     );

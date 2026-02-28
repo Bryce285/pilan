@@ -16,6 +16,7 @@ add_executable(server
 	src/paths.cpp
 	src/server.cpp
     src/server_storage_manager.cpp
+	src/local_storage_manager.cpp
 	src/logger.cpp
     security/src/crypto.cpp
     security/src/key_manager.cpp

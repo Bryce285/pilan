@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <filesystem>
 #include <sodium.h>
 
@@ -37,13 +38,13 @@ class LocalStorageManager
         };
 
         explicit LocalStorageManager(Mode local_mode, const std::string& source, const std::string& destination)
-            : mode(local_mode), src(source), dest(destination)
+            : mode(local_mode), src_path(source), dest_path(destination)
         {
             if (mode == ENCRYPT) {
-                local_encrypt(src, dest);
+                local_encrypt(src_path, dest_path);
             }
             else {
-                local_decrypt(src, dest);
+                local_decrypt(src_path, dest_path);
             }
         }
 
@@ -54,8 +55,8 @@ class LocalStorageManager
 
     private:
         Mode mode;
-        const std::string src;
-        const std::string dest;
+        const std::string src_path;
+        const std::string dest_path;
 
         //StorageConfig config;
         CryptoAtRest crypto_rest;
