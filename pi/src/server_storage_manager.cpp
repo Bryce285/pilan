@@ -115,7 +115,6 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 
     char hex[HASH_SIZE_HEX];
 
-	// write name, size, hash, and creation timestamp to metadata file
 	json metadata;
 	metadata["name"] = handle.final_path.filename();
 	metadata["size_bytes"] = handle.expected_size;
@@ -151,13 +150,9 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 
 ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::string& name)
 {
-	// find and validate file
 	std::filesystem::path path = config.meta_dir / (sanitize_filename(name) + ".json");	
-
-	// create a FileInfo object
 	FileInfo file_info;
 
-	// fill out FileInfo object with file metadata
 	std::ifstream inFile(path);
 	json metadata{json::parse(inFile)};
 
@@ -193,11 +188,9 @@ std::vector<ServerStorageManager::FileInfo> ServerStorageManager::list_files()
 
 void ServerStorageManager::delete_file(const std::string& name)
 {
-	// find and validate file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	std::filesystem::path path_deleting = path.parent_path() / (path.filename().string() + ".deleting");
 
-	// rename (name.deleting)
 	std::filesystem::rename(path, path_deleting);
 
 	int dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
@@ -209,7 +202,6 @@ void ServerStorageManager::delete_file(const std::string& name)
 		throw std::runtime_error("Failed to open file");	
 	}
 	
-	// delete the file
 	std::filesystem::remove(path_deleting);
 
 	dir_fd = open(config.files_dir.c_str(), O_DIRECTORY | O_RDONLY);
@@ -221,7 +213,6 @@ void ServerStorageManager::delete_file(const std::string& name)
 		throw std::runtime_error("Failed to open file");	
 	}
 
-	// delete metadata
 	std::filesystem::path meta_path = config.meta_dir / (name + ".json");
 	std::filesystem::path meta_path_deleting = meta_path.parent_path() / (meta_path.filename().string() + ".deleting");
 
@@ -260,7 +251,6 @@ void ServerStorageManager::data_to_send(uint8_t* data, size_t len, StreamWriter&
 
 void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 {
-	// validate and open file
 	std::filesystem::path path = config.files_dir / sanitize_filename(name);	
 	
 	/*
@@ -288,7 +278,6 @@ void ServerStorageManager::stream_file(std::string& name, StreamWriter& writer)
 		writer
 	);
 
-	// close file
 	writer.flush();
 	::close(fd);
 }

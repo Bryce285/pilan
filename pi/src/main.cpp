@@ -1,9 +1,3 @@
-#include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
-#include <netinet/in.h>   // sockaddr_in, INADDR_ANY, htons()
-#include <arpa/inet.h>    // inet_addr() if needed
-#include <unistd.h>       // close()
-#include <fcntl.h>
-
 #include <vector>
 #include <chrono>
 #include <string>
@@ -11,7 +5,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <thread>
 #include <sstream>
 #include <filesystem>
 #include <fstream>
@@ -20,10 +13,9 @@
 
 #include <sodium.h>
 
-#include "server.hpp"
-#include "key_manager.hpp"
-#include "logger.hpp"
 #include "paths.hpp"
+#include "server_init.hpp"
+#include "local_storage_manager"
 
 // for logging connections
 struct ClientConnection 
@@ -34,89 +26,101 @@ struct ClientConnection
 	std::chrono::steady_clock::time_point time;	
 };
 
-int main()
+/*
+ *  Usage
+ *
+ *  -s                                                          start in server mode
+ *  -e </path/to/source/file> </path/to/destination/file>       local mode encryption
+ *  -d </path/to/source/file> </path/to/destination/file>       local mode decryption
+ *  -h                                                          help
+ *  --help                                                      help
+ */
+
+int main(int argc, char* argv[])
 {
+    bool server_mode = false;
+    bool local_encrypt = false;
+    bool local_decrypt = false;
+    std::filesystem::path src;
+    std::filesystem::path dest;
+
+    std::string usage = "Usage:\n" 
+                + "\t-s\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tstart in server mode\n"
+                + "\t-e </path/to/source/file> </path/to/destination/file> \t\tlocal mode encryption\n"
+                + "\t-d </path/to/source/file> </path/to/destination/file> \t\tlocal mode decryption\n"
+                + "\t-h\t\t\t\t\t\t\t\t\t\t\t\t\t\t\thelp\n"
+                + "\t--help\t\t\t\t\t\t\t\t\t\t\t\t\t\t\thelp\n"; 
+
+    for (int i = 1; i < argc; i++) {
+        std::string_view arg = argv[i];
+
+        if (arg == "-h"sv || arg == "--help"sv) {
+            std::cout << usage;
+            exit(0);
+        }
+        else if (arg == "-s"sv) {
+            if (local_encrypt || local_decrypt || server_mode) {
+                std::cout << usage;
+                exit(0);
+            }
+
+            server_mode = true;
+            break;
+        }
+        else if (arg == "-e") {
+            if (server_mode || local_encrypt || local_decrypt) {
+                std::cout << usage;
+                exit(0);
+            }
+            if (!(argv[i + 1] && argv[i + 2])) {
+                std::cout << usage;
+                exit(0);
+            }
+            src = argv[i + 1];
+            dest = argv[i + 2];  
+
+            local_encrypt = true;
+        }
+        else if (arg == "-d") {
+            if (server_mode || local_encrypt || local_decrypt) {
+                std::cout << usage;
+                exit(0);
+            }
+            if (!(argv[i + 1] && argv[i + 2])) {
+                std::cout << usage;
+                exit(0);
+            }
+            src = argv[i + 1];
+            dest = argv[i + 2]; 
+             
+            local_decrypt = true;
+        }
+    }
+
     if (sodium_init() < 0) {
         std::cerr << "Failed to initialize libsodium" << std::endl;
         exit(1);
     }
-	
-	if (!PathMgr::mkdirs()) {
+    
+    if (!PathMgr::mkdirs()) {
 		exit(1);
 	}
+    	
+    if (server_mode) {
+	    if (!ServerInit::server_init()){
+            exit(1);
+        }
+    }
+    else if (local_encrypt) {
+        LocalStorageManager mgr{LocalStorageManager::ENCRYPT, src, dest};
+    }
+    else if (local_decrypt) {
+        LocalStorageManager mgr{LocalStorageManager::DECRYPT, src, dest};
+    }
+    else {
+        std::cerr << "Mode error: valid state not detected" << std::endl;
+        exit(1);
+    }
 
-	Logger logger;
-	Server server(logger);
-	
-	logger.log_event(Logger::LogEvent::SERVICE_START);
-	
-	/*
-	std::atexit([&logger]() {
-		logger.log_event(Logger::LogEvent::SERVICE_STOP);
-	});
-	*/
-
-	bool quit = false;
-
-	// create a socket
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0) {
-		perror("Failed to create socket.");
-		exit(1);
-	}
-
-	// Bind the ip address and port to a socket
-	sockaddr_in addr{};
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(8080);
-	addr.sin_addr.s_addr = INADDR_ANY;
-
-	int opt = 1;
-	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	signal(SIGPIPE, SIG_IGN);
-
-	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-		perror("Failed to bind socket.");
-		exit(1);
-	}
-
-	// tell sys/socket the socket is for listening	
-	if (listen(sockfd, 8) < 0) {
-		perror("Listening failed.");
-		exit(1);
-	}
-
-	// wait for connection	
-	while (!quit) {
-		
-		sockaddr_in client_addr{};
-		socklen_t client_size = sizeof(client_addr);
-		int clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &client_size);
-		if (clientfd < 0) {
-			perror("Failed to accept connection.");
-			continue;
-		}
-
-		int flags = fcntl(clientfd, F_GETFL, 0);
-		fcntl(clientfd, F_SETFL, flags | O_NONBLOCK);
-		
-		char ip[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &client_addr.sin_addr, ip, sizeof(ip));
-	
-		ClientConnection connection {
-			clientfd,
-			ip,
-			ntohs(client_addr.sin_port),
-			std::chrono::steady_clock::now()
-		};
-
-		logger.log_event(Logger::LogEvent::CLIENT_CONNECT);
-
-		std::thread t(&Server::handle_client, &server, clientfd);
-		t.detach();
-	}
-	
-	// close listening socket
-	close(sockfd);
-	return 0;
+	exit(0);
 }
