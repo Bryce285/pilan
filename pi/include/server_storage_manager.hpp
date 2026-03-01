@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <sodium.h>
 
+#include "utils.hpp"
 #include "stream_writer.hpp"
 #include "crypto.hpp"
 #include "secure_mem.hpp"
@@ -92,7 +93,6 @@ class ServerStorageManager
         SecureKey& FEK;
         SecureKey* SESSION_KEY;
 		
-		uint64_t unix_timestamp_ms();
 		std::string sanitize_filename(std::string name);
 
         void data_to_send(uint8_t* data, size_t len, StreamWriter& writer);

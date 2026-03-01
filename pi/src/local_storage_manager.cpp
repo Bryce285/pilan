@@ -1,22 +1,64 @@
 #include "local_storage_manager.hpp"
 
-void LocalStorageManager::finalize(const std::string& tmp_path, const std::string& perm_path)
+using json = nlohmann::json;
+
+void LocalStorageManager::finalize(const std::string& tmp_path, const std::string& perm_path, bool create_meta)
 {
     if (::rename(tmp_path.c_str(), perm_path.c_str()) != 0) {
         perror("Error finalizing upload");
+    }
+    
+    if (create_meta && mode == ENCRYPT) {
+        std::filesystem::path perm_name = perm_path.filename();
+        std::filesystem::path meta_path = meta_dir / perm_name;
+
+        uint8_t hash[crypto_generichash_BYTES];
+        if (crypto_generichash_final(&hash_state, hash, crypto_generichash_BYTES) != 0) {
+            throw std::runtime_error("Sodium error: could not finalize hash");
+        }
+        
+        std::ofstream outFile(meta_path);
+	    if (!outFile.is_open()) {
+		    std::string error_msg = "Failed to open " + meta_path.string() + "\n";
+		    throw std::runtime_error(error_msg);
+	    }
+	
+	    constexpr size_t HASH_SIZE_HEX = (crypto_generichash_BYTES * 2) + 1;
+        char hex[HASH_SIZE_HEX];
+        
+        json metadata;
+	    metadata["name"] = perm_name;
+	    metadata["size_bytes"] = file_size;
+	    metadata["sha256_hex"] = sodium_bin2hex(hex, sizeof(hex), hash, crypto_generichash_BYTES);
+	    metadata["created_at"] = std::to_string(Utils::unix_timestamp_ms());
+
+	    outFile << metadata;
+	    outFile.close();
     }
 }
 
 void LocalStorageManager::local_encrypt(const std::string& src, const std::string& dest)
 {
-    std::string dest_tmp = dest + ".tmp";
+    if (crypto_generichash_init(
+			&hash_state, 
+			nullptr, 
+			0, 
+			crypto_generichash_BYTES) != 0) {
+    	throw std::runtime_error("Hash init failed");
+    }
+
+    std::filesystem::path dest_tmp = dest + ".tmp"; 
+    std::filesystem::path tmp_path = tmp_dir / dest_tmp.filename();
+    std::string tmp_path_str = tmp_path.string();
 
     int src_fd = open(src.c_str(), O_RDONLY);
-    int dest_fd = open(dest_tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    int dest_fd = open(tmp_path_str.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
     if (src_fd < 0 || dest_fd < 0) {
         throw std::runtime_error("Failed to open file");
     }
+
+    file_size = std::filesystem::file_size(src);
 
     auto stream = crypto_rest.file_encrypt_init(dest_fd, FEK->key_buf);
     if (!stream) {
@@ -44,6 +86,8 @@ void LocalStorageManager::local_encrypt(const std::string& src, const std::strin
             break;
         }
         
+        crypto_generichash_update(&hash_state, buffer.data(), n);
+
         bool is_last = (n < BUF_SIZE);
         
         crypto_rest.encrypt_chunk(
@@ -60,15 +104,17 @@ void LocalStorageManager::local_encrypt(const std::string& src, const std::strin
     close(src_fd);
     close(dest_fd);
 
-    finalize(dest_tmp, dest);
+    finalize(tmp_path_str, dest);
 }
 
 void LocalStorageManager::local_decrypt(const std::string& src, const std::string& dest)
 {
-    std::string dest_tmp = dest + ".tmp";
+    std::filesystem::path dest_tmp = dest + ".tmp"; 
+    std::filesystem::path tmp_path = tmp_dir / dest_tmp.filename();
+    std::string tmp_path_str = tmp_path.string();
 
     int src_fd = open(src.c_str(), O_RDONLY);
-    int dest_fd = open(dest_tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    int dest_fd = open(tmp_path_str.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
     if (src_fd < 0 || dest_fd < 0) {
         throw std::runtime_error("Failed to open file");
@@ -93,5 +139,5 @@ void LocalStorageManager::local_decrypt(const std::string& src, const std::strin
     close(src_fd);
     close(dest_fd);
 
-    finalize(dest_tmp, dest);
+    finalize(tmp_path_str, dest);
 }

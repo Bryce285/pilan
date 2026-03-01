@@ -2,14 +2,6 @@
 
 using json = nlohmann::json;
 
-uint64_t ServerStorageManager::unix_timestamp_ms()
-{
-	using namespace std::chrono;
-    return duration_cast<milliseconds>(
-        system_clock::now().time_since_epoch()
-    ).count();
-}
-
 std::string ServerStorageManager::sanitize_filename(std::string name)
 {
 	const std::string invalid_chars = R"literal(<>:\"/\\|?*)literal";
@@ -112,14 +104,13 @@ void ServerStorageManager::commit_upload(UploadHandle& handle)
 	}
 	
 	constexpr size_t HASH_SIZE_HEX = (crypto_generichash_BYTES * 2) + 1;
-
     char hex[HASH_SIZE_HEX];
 
 	json metadata;
 	metadata["name"] = handle.final_path.filename();
 	metadata["size_bytes"] = handle.expected_size;
 	metadata["sha256_hex"] = sodium_bin2hex(hex, sizeof(hex), hash, crypto_generichash_BYTES);
-	metadata["created_at"] = std::to_string(unix_timestamp_ms());
+	metadata["created_at"] = std::to_string(Utils::unix_timestamp_ms());
 
 	outFile << metadata;
 	outFile.close();

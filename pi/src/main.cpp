@@ -18,16 +18,6 @@
 #include "server_init.hpp"
 #include "local_storage_manager.hpp"
 
-/*
- *  Usage
- *
- *  -s                                                          start in server mode
- *  -e </path/to/source/file> </path/to/destination/file>       local mode encryption
- *  -d </path/to/source/file> </path/to/destination/file>       local mode decryption
- *  -h                                                          help
- *  --help                                                      help
- */
-
 int main(int argc, char* argv[])
 {
     bool server_mode = false;
@@ -35,6 +25,7 @@ int main(int argc, char* argv[])
     bool local_decrypt = false;
     std::filesystem::path src;
     std::filesystem::path dest;
+    bool create_meta = false;
 
 	struct Option {
     	std::string flag;
@@ -42,14 +33,16 @@ int main(int argc, char* argv[])
 	};
 
 	std::vector<Option> options = {
-    	{"-s", "start in server mode"},
-    	{"-e <src> <dst>", "local mode encryption"},
-    	{"-d <src> <dst>", "local mode decryption"},
+    	{"-s, --server", "start in server mode"},
+    	{"-e <src> <dst>, --encrypt <src> <dst>", "local mode encryption"},
+    	{"-d <src> <dst>, --decrypt <src> <dst>", "local mode decryption"},
+        {"-m, --meta", "create metadata for local file encryptions"},
     	{"-h, --help", "show help"}
 	};
 
 	std::ostringstream oss;
 	oss << "Usage:\n\n";
+    oss << "Welcome to pilan.\nRead the docs: <link_here>\nFor more configuration options, edit ~/.pilanconfig\n\n"; 
 
 	for (const auto& opt : options) {
     	oss << "  " << std::left << std::setw(30)
@@ -66,7 +59,7 @@ int main(int argc, char* argv[])
             std::cout << usage;
             exit(0);
         }
-        else if (arg == std::string_view("-s")) {
+        else if (arg == std::string_view("-s") || arg == std::string_view("--server")) {
             if (local_encrypt || local_decrypt || server_mode) {
                 std::cout << usage;
                 exit(0);
@@ -75,7 +68,7 @@ int main(int argc, char* argv[])
             server_mode = true;
             break;
         }
-        else if (arg == std::string_view("-e")) {
+        else if (arg == std::string_view("-e") || arg == std::string_view("--encrypt")) {
             if (server_mode || local_encrypt || local_decrypt) {
                 std::cout << usage;
                 exit(0);
@@ -89,7 +82,7 @@ int main(int argc, char* argv[])
 
             local_encrypt = true;
         }
-        else if (arg == std::string_view("-d")) {
+        else if (arg == std::string_view("-d") || arg == std::string_view("--decrypt")) {
             if (server_mode || local_encrypt || local_decrypt) {
                 std::cout << usage;
                 exit(0);
@@ -102,6 +95,13 @@ int main(int argc, char* argv[])
             dest = argv[i + 2]; 
              
             local_decrypt = true;
+        }
+        else if (arg == std::string_view("-m") || arg == std::string_view("--meta")) {
+            if (server_mode) {
+                std::cout << usage;
+                exit(0);
+            }
+            create_meta = true;
         }
     }
 
@@ -120,10 +120,10 @@ int main(int argc, char* argv[])
         }
     }
     else if (local_encrypt) {
-        LocalStorageManager mgr{LocalStorageManager::ENCRYPT, src, dest};
+        LocalStorageManager mgr{LocalStorageManager::ENCRYPT, src, dest, create_meta};
     }
     else if (local_decrypt) {
-        LocalStorageManager mgr{LocalStorageManager::DECRYPT, src, dest};
+        LocalStorageManager mgr{LocalStorageManager::DECRYPT, src, dest, create_meta};
     }
     else {
         std::cerr << "Mode error: valid state not detected" << std::endl;

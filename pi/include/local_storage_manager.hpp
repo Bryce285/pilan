@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <sodium.h>
 
+#include "utils.hpp"
 #include "file_stream_writer.hpp"
 #include "crypto.hpp"
 
@@ -10,21 +11,7 @@
 class LocalStorageManager
 {
     public:
-        /*
         struct StorageConfig {
-            std::filesystem::path files_dir;
-            std::filesystem::path tmp_dir;
-            std::filesystem::path meta_dir; // create a metadata file for compatibility with server mode. TODO - make generation of this file optional
-
-            bool read_only;
-        };
-        */
-        
-        /*
-        explicit LocalStorageManager(const StorageConfig& cfg, SecureKey& fek)
-            : config(cfg) {}
-        */
-
         KeyManager key_manager;
         std::unique_ptr<SecureKey> MDK = std::make_unique<SecureKey>(KeyType::MASTER_DEVICE);
 
@@ -37,8 +24,8 @@ class LocalStorageManager
             DECRYPT
         };
 
-        explicit LocalStorageManager(Mode local_mode, const std::string& source, const std::string& destination)
-            : mode(local_mode), src_path(source), dest_path(destination)
+        explicit LocalStorageManager(Mode local_mode, const std::string& source, const std::string& destination, bool create_metadata)
+            : mode(local_mode), create_meta(create_metadata), src_path(source), dest_path(destination)
         {
             if (mode == ENCRYPT) {
                 local_encrypt(src_path, dest_path);
@@ -47,17 +34,23 @@ class LocalStorageManager
                 local_decrypt(src_path, dest_path);
             }
         }
-
-        void finalize(const std::string& tmp_path, const std::string& perm_path);
+        
+        void finalize(const std::string& tmp_path, const std::string& perm_path, bool create_meta);
         
         void local_encrypt(const std::string& src, const std::string& dest);
         void local_decrypt(const std::string& src, const std::string& dest);
 
     private:
+        std::filesystem::path tmp_dir{PathMgr::strg_cfg_tmp};
+        std::filesystem::path meta_dir{PathMgr::strg_cfg_meta}; // TODO - make creation of metadata optional for local uploads
+        
         Mode mode;
         const std::string src_path;
         const std::string dest_path;
+        bool create_meta = false;
+        
+        size_t file_size = 0;
 
-        //StorageConfig config;
+        crypto_generichash_state hash_state;
         CryptoAtRest crypto_rest;
 };
