@@ -24,8 +24,8 @@ class LocalStorageManager
             DECRYPT
         };
 
-        explicit LocalStorageManager(Mode local_mode, const std::string& source, const std::string& destination, bool create_metadata)
-            : mode(local_mode), create_meta(create_metadata), src_path(source), dest_path(destination)
+        explicit LocalStorageManager(PathMgr& path_manager, Mode local_mode, const std::string& source, const std::string& destination, bool create_metadata)
+            : path_mgr(path_manager), mode(local_mode), create_meta(create_metadata), src_path(source), dest_path(destination)
         {
             if (mode == ENCRYPT) {
                 local_encrypt(src_path, dest_path);
@@ -41,8 +41,9 @@ class LocalStorageManager
         void local_decrypt(const std::string& src, const std::string& dest);
 
     private:
-        std::filesystem::path tmp_dir{PathMgr::strg_cfg_tmp};
-        std::filesystem::path meta_dir{PathMgr::strg_cfg_meta}; // TODO - make creation of metadata optional for local uploads
+        PathMgr& path_mgr; 
+        std::filesystem::path tmp_dir{path_mgr.strg_cfg_tmp};
+        std::filesystem::path meta_dir{path_mgr.strg_cfg_meta}; // TODO - make creation of metadata optional for local uploads
         
         Mode mode;
         const std::string src_path;

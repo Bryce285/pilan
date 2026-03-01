@@ -7,14 +7,17 @@ class PathMgr
 {
 	public:
 				
-		inline static const std::filesystem::path log_path = "/data/logs/pilan.log";
+	    std::filesystem::path log_path;
 	
-		inline static const std::filesystem::path strg_cfg_root = "/data/";
-		inline static const std::filesystem::path strg_cfg_files = "/data/files/";
-		inline static const std::filesystem::path strg_cfg_tmp = "/data/tmp/";
-		inline static const std::filesystem::path strg_cfg_meta = "/data/meta/";
+		std::filesystem::path strg_cfg_root;
+		std::filesystem::path strg_cfg_files;
+		std::filesystem::path strg_cfg_tmp;
+		std::filesystem::path strg_cfg_meta;
 
-		inline static const std::filesystem::path mdk_path = "/data/mdk/pilan.mdk";
-
-		static bool mkdirs();
+		std::filesystem::path mdk_path;
+        
+		bool mkdirs();
+    
+    private:
+        void init_paths();
 };

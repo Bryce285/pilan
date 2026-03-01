@@ -33,7 +33,8 @@
 class Server 
 {
 	public:
-		Server(Logger& lgr) : logger(lgr) {}
+		Server(Logger& lgr, PathMgr& path_manager)
+            : logger(lgr), path_mgr(path_manager) {}
 
 		void handle_client(int clientfd);
 
@@ -41,8 +42,9 @@ class Server
 		static constexpr int AUTH_TIMEOUT = 10;
 		
 		Logger& logger;
+        PathMgr& path_mgr;
 
-        KeyManager key_manager;
+        KeyManager key_manager{path_mgr};
         std::unique_ptr<SecureKey> MDK = std::make_unique<SecureKey>(KeyType::MASTER_DEVICE);
 
         std::string fek_context = "file_encryption_v1";
@@ -55,17 +57,7 @@ class Server
  
         std::unique_ptr<SecureKey> SESSION_KEY;
 		
-		ServerStorageManager::StorageConfig config {
-			.root{PathMgr::strg_cfg_root}, 
-			.files_dir{PathMgr::strg_cfg_files}, 
-			.tmp_dir{PathMgr::strg_cfg_tmp}, 
-			.meta_dir{PathMgr::strg_cfg_meta},
-			.max_file_size = 1000000000, // 1GB
-			.max_total_size = 10000000000, // 10GB
-			.read_only = false
-		};
-		
-		ServerStorageManager storage_manager{logger, config, *FEK};
+		ServerStorageManager storage_manager{logger, path_mgr, *FEK};
 
 		std::unique_ptr<ServerStorageManager::UploadHandle> cur_upload_handle;
 

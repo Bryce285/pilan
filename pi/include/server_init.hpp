@@ -22,10 +22,10 @@ namespace ServerInit
 		std::chrono::steady_clock::time_point time;	
 	};
 
-    bool server_init()
+    bool server_init(PathMgr& path_mgr)
     {
-        Logger logger;
-	    Server server(logger);
+        Logger logger{path_mgr};
+	    Server server{logger, path_mgr};
 	    logger.log_event(Logger::LogEvent::SERVICE_START);
     
         // TODO - make this exit handler work
@@ -37,14 +37,12 @@ namespace ServerInit
 
 	    bool quit = false;
 
-	    // create a socket
 	    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	    if (sockfd < 0) {
 		    perror("Failed to create socket.");
 		    return false;
 	    }
 
-	    // Bind the ip address and port to a socket
 	    sockaddr_in addr{};
 	    addr.sin_family = AF_INET;
 	    addr.sin_port = htons(8080);
@@ -59,7 +57,6 @@ namespace ServerInit
 		    return false;
 	    }
 
-	    // tell sys/socket the socket is for listening	
 	    if (listen(sockfd, 8) < 0) {
 		    perror("Listening failed.");
 		    return false;
@@ -95,7 +92,6 @@ namespace ServerInit
 		    t.detach();
 	    }
 	
-	    // close listening socket
 	    close(sockfd);
         return true;
     }

@@ -109,21 +109,22 @@ int main(int argc, char* argv[])
         std::cerr << "Failed to initialize libsodium" << std::endl;
         exit(1);
     }
-    
-    if (!PathMgr::mkdirs()) {
+
+    PathMgr path_mgr;
+    if (!path_mgr.mkdirs()) {
 		exit(1);
 	}
     	
     if (server_mode) {
-	    if (!ServerInit::server_init()){
+	    if (!ServerInit::server_init(path_mgr)){
             exit(1);
         }
     }
     else if (local_encrypt) {
-        LocalStorageManager mgr{LocalStorageManager::ENCRYPT, src, dest, create_meta};
+        LocalStorageManager mgr{path_mgr, LocalStorageManager::ENCRYPT, src, dest, create_meta};
     }
     else if (local_decrypt) {
-        LocalStorageManager mgr{LocalStorageManager::DECRYPT, src, dest, create_meta};
+        LocalStorageManager mgr{path_mgr, LocalStorageManager::DECRYPT, src, dest, create_meta};
     }
     else {
         std::cerr << "Mode error: valid state not detected" << std::endl;
