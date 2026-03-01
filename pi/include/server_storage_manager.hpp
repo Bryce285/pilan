@@ -67,9 +67,22 @@ class ServerStorageManager
         CryptoAtRest crypto_rest;
         CryptoInTransit crypto_transit;
         
-		explicit ServerStorageManager(Logger& lgr, PathMgr& path_manager, SecureKey& fek)
-			: logger(lgr), path_mgr(path_manager), FEK(fek), SESSION_KEY(nullptr) {}	
-	
+		explicit ServerStorageManager(Logger& lgr, SecureKey& fek)
+			: logger(lgr), FEK(fek), SESSION_KEY(nullptr) {}	
+		
+		static void init(const PathMgr& path_mgr)
+		{
+			config = StorageConfig{
+            	.root = path_mgr.strg_cfg_root,
+            	.files_dir = path_mgr.strg_cfg_files,
+            	.tmp_dir = path_mgr.strg_cfg_tmp,
+            	.meta_dir = path_mgr.strg_cfg_meta,
+            	.max_file_size = 1'000'000'000, //1GB
+            	.max_total_size = 10'000'000'000, //10GB
+            	.read_only = false
+        	};
+		}
+
 		void set_session_key(SecureKey& key)
 		{
 			SESSION_KEY = &key;
@@ -88,17 +101,8 @@ class ServerStorageManager
 
 	private:
 		Logger& logger;
-        PathMgr& path_mgr;
 
-        StorageConfig config {
-			.root{path_mgr.strg_cfg_root}, 
-			.files_dir{path_mgr.strg_cfg_files}, 
-			.tmp_dir{path_mgr.strg_cfg_tmp}, 
-			.meta_dir{path_mgr.strg_cfg_meta},
-			.max_file_size = 1000000000, // 1GB
-			.max_total_size = 10000000000, // 10GB
-			.read_only = false
-		};
+        inline static StorageConfig config;
 				
         SecureKey& FEK;
         SecureKey* SESSION_KEY;

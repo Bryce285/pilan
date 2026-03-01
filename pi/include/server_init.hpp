@@ -22,10 +22,10 @@ namespace ServerInit
 		std::chrono::steady_clock::time_point time;	
 	};
 
-    bool server_init(PathMgr& path_mgr)
+    bool server_init()
     {
-        Logger logger{path_mgr};
-	    Server server{logger, path_mgr};
+        Logger logger;
+	    Server server{logger};
 	    logger.log_event(Logger::LogEvent::SERVICE_START);
     
         // TODO - make this exit handler work

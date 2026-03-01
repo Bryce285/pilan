@@ -1,17 +1,18 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <sodium.h>
+#include <nlohmann/json.hpp>
 
 #include "utils.hpp"
 #include "file_stream_writer.hpp"
 #include "crypto.hpp"
+#include "paths.hpp"
 
 #pragma once
 
 class LocalStorageManager
 {
     public:
-        struct StorageConfig {
         KeyManager key_manager;
         std::unique_ptr<SecureKey> MDK = std::make_unique<SecureKey>(KeyType::MASTER_DEVICE);
 
@@ -19,35 +20,35 @@ class LocalStorageManager
         uint64_t fek_subkey_id = 1;
         std::unique_ptr<SecureKey> FEK = std::make_unique<SecureKey>(KeyType::FILE_ENCRYPT, MDK->key_buf, fek_context, fek_subkey_id, false);
 
-        enum Mode {
+        enum class Mode {
             ENCRYPT,
             DECRYPT
         };
 
-        explicit LocalStorageManager(PathMgr& path_manager, Mode local_mode, const std::string& source, const std::string& destination, bool create_metadata)
-            : path_mgr(path_manager), mode(local_mode), create_meta(create_metadata), src_path(source), dest_path(destination)
+        explicit LocalStorageManager(LocalStorageManager::Mode local_mode, std::string source, std::string destination, bool create_metadata)
+            : mode(local_mode), src_path(source), dest_path(destination), create_meta(create_metadata)
         {
-            if (mode == ENCRYPT) {
+            if (mode == Mode::ENCRYPT) {
                 local_encrypt(src_path, dest_path);
             }
             else {
                 local_decrypt(src_path, dest_path);
             }
         }
+       	
+		static void init(const PathMgr& path_mgr); 
+        void finalize(std::string tmp_path, std::string perm_path);
         
-        void finalize(const std::string& tmp_path, const std::string& perm_path, bool create_meta);
-        
-        void local_encrypt(const std::string& src, const std::string& dest);
-        void local_decrypt(const std::string& src, const std::string& dest);
+        void local_encrypt(std::string src, std::string dest);
+        void local_decrypt(std::string src, std::string dest);
 
-    private:
-        PathMgr& path_mgr; 
-        std::filesystem::path tmp_dir{path_mgr.strg_cfg_tmp};
-        std::filesystem::path meta_dir{path_mgr.strg_cfg_meta}; // TODO - make creation of metadata optional for local uploads
+    private: 
+        inline static std::filesystem::path tmp_dir;
+        inline static std::filesystem::path meta_dir; 
         
         Mode mode;
-        const std::string src_path;
-        const std::string dest_path;
+        std::string src_path;
+        std::string dest_path;
         bool create_meta = false;
         
         size_t file_size = 0;

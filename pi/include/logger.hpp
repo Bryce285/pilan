@@ -42,7 +42,7 @@ class Logger
 		
 		std::unordered_map<LogEvent, const char*> level_map;
 		
-		Logger(PathMgr& path_manager) : path_mgr(path_manager);
+		Logger();
 		
 		inline const char* event_to_string(LogEvent event) {
     		switch (event) {
@@ -66,15 +66,15 @@ class Logger
         		default:              return "UNKNOWN";
     		}
 		}	
-
+		
+		static void init(const PathMgr& path_mgr);
 		void log_event(LogEvent event);
 
 	private:
 		std::mutex mutex;
 		bool logs_enabled = true;
 		
-        PathMgr& path_mgr;
-		inline static const std::filesystem::path log_path_{path_mgr.log_path};
+		inline static std::filesystem::path log_path_;
 
 		static constexpr size_t log_max_bytes_ = 10240; // 10mb
 		size_t log_cur_bytes_ = 0;

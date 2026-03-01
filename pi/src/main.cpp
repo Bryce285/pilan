@@ -114,17 +114,23 @@ int main(int argc, char* argv[])
     if (!path_mgr.mkdirs()) {
 		exit(1);
 	}
-    	
+
+	KeyManager::init(path_mgr);
+
     if (server_mode) {
-	    if (!ServerInit::server_init(path_mgr)){
+		Logger::init(path_mgr);
+		ServerStorageManager::init(path_mgr);
+	    if (!ServerInit::server_init()){
             exit(1);
         }
     }
     else if (local_encrypt) {
-        LocalStorageManager mgr{path_mgr, LocalStorageManager::ENCRYPT, src, dest, create_meta};
+		LocalStorageManager::init(path_mgr);
+        LocalStorageManager mgr{LocalStorageManager::Mode::ENCRYPT, src, dest, create_meta};
     }
     else if (local_decrypt) {
-        LocalStorageManager mgr{path_mgr, LocalStorageManager::DECRYPT, src, dest, create_meta};
+		LocalStorageManager::init(path_mgr);
+        LocalStorageManager mgr{LocalStorageManager::Mode::DECRYPT, src, dest, create_meta};
     }
     else {
         std::cerr << "Mode error: valid state not detected" << std::endl;

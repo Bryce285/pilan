@@ -2,14 +2,21 @@
 
 using json = nlohmann::json;
 
-void LocalStorageManager::finalize(const std::string& tmp_path, const std::string& perm_path, bool create_meta)
+void LocalStorageManager::init(const PathMgr& path_mgr)
+{
+	tmp_dir = path_mgr.strg_cfg_tmp;
+	meta_dir = path_mgr.strg_cfg_meta;	
+}
+
+void LocalStorageManager::finalize(std::string tmp_path, std::string perm_path)
 {
     if (::rename(tmp_path.c_str(), perm_path.c_str()) != 0) {
         perror("Error finalizing upload");
     }
     
-    if (create_meta && mode == ENCRYPT) {
-        std::filesystem::path perm_name = perm_path.filename();
+    if (create_meta && mode == Mode::ENCRYPT) {
+		std::filesystem::path path = perm_path;
+        std::filesystem::path perm_name = path.filename();
         std::filesystem::path meta_path = meta_dir / perm_name;
 
         uint8_t hash[crypto_generichash_BYTES];
@@ -37,7 +44,7 @@ void LocalStorageManager::finalize(const std::string& tmp_path, const std::strin
     }
 }
 
-void LocalStorageManager::local_encrypt(const std::string& src, const std::string& dest)
+void LocalStorageManager::local_encrypt(std::string src, std::string dest)
 {
     if (crypto_generichash_init(
 			&hash_state, 
@@ -107,7 +114,7 @@ void LocalStorageManager::local_encrypt(const std::string& src, const std::strin
     finalize(tmp_path_str, dest);
 }
 
-void LocalStorageManager::local_decrypt(const std::string& src, const std::string& dest)
+void LocalStorageManager::local_decrypt(std::string src, std::string dest)
 {
     std::filesystem::path dest_tmp = dest + ".tmp"; 
     std::filesystem::path tmp_path = tmp_dir / dest_tmp.filename();

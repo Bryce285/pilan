@@ -11,13 +11,12 @@
 class KeyManager
 {
     public:
-		const std::string FEK_CONTEXT = "file_encryption_v1";
-		const std::string TAK_CONTEXT = "transport_auth_v1";
+		inline static const std::string FEK_CONTEXT = "file_encryption_v1";
+		inline static const std::string TAK_CONTEXT = "transport_auth_v1";
         
-        explicit KeyManager(PathMgr& path_manager) : path_mgr(path_manager) {}
+		static void init(const PathMgr& path_mgr);
 
         static void load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES]);
-
 		static void derive_key(const uint8_t* mdk, uint8_t key_out[crypto_kdf_KEYBYTES], std::string context, uint64_t subkey_id, bool is_tak);
 
     private:
@@ -25,8 +24,7 @@ class KeyManager
         constexpr static size_t NONCE_SIZE = crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
         constexpr static const char* HEADER = "MDK1";
         
-        PathMgr& path_mgr;
-		inline static std::filesystem::path MDK_PATH{path_mgr.mdk_path};
+		inline static std::filesystem::path MDK_PATH;
 		
 		static void print_tak(uint8_t tak[crypto_kdf_KEYBYTES]);
 };

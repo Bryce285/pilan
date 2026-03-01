@@ -2,14 +2,9 @@
 
 void PathMgr::init_paths()
 {
-    auto root_dir = Utils.parse_config();
+    auto root_dir = Utils::parse_config();
 
-    if (root_dir) {
-        strg_cfg_root = root_dir;
-    }
-    else {
-        strg_cfg_root = "/data/";
-    }
+	strg_cfg_root = root_dir.value_or("/data/");
 
     log_path = strg_cfg_root / "logs/pilan.log";
     strg_cfg_files = strg_cfg_root / "files/";
@@ -20,6 +15,14 @@ void PathMgr::init_paths()
 
 bool PathMgr::mkdirs()
 {
+	try {
+		init_paths();
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Path init error: " << e.what() << std::endl;
+		return false;
+	}
+
 	try {
 		std::filesystem::create_directory(strg_cfg_root);
 		std::filesystem::create_directory(log_path.parent_path());

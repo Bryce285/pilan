@@ -9,7 +9,7 @@
 
 namespace Utils
 {
-    uint64_t ServerStorageManager::unix_timestamp_ms()
+    inline uint64_t unix_timestamp_ms()
     {
 	    using namespace std::chrono;
         return duration_cast<milliseconds>(
@@ -35,43 +35,5 @@ namespace Utils
         rtrim(s);
     }
     
-    /* This is a simple parsing function to parse a config file with the single
-     * line: pilan_root=/path/to/directory 
-     * This function should be expanded later to accomodate a more complex config file
-     */
-    std::optional<std::string> parse_config()
-    {
-        std::ifstream file("~/.pilan-config");
-        if (!file.is_open()) {
-            return std::nullopt;
-        }
-
-        std::string line;
-        const std::string key = "pilan_root";
-
-        while (std::getline(file, line)) {
-            trim(line);
-
-            if (line.empty() || line[0] == '#') {
-                continue;
-            }
-
-            auto eq_pos = line.find('=');
-            if (eq_pos == std::string::npos) {
-                continue;
-            }
-
-            std::string lhs = line.substr(0, eq_pos);
-            std::string rhs = line.substr(eq_pos + 1);
-
-            trim(lhs);
-            trim(rhs);
-
-            if (lhs == key && !rhs.empty()) {
-                return rhs;
-            }
-        }
-
-        return std::nullopt;
-    }
+    std::optional<std::string> parse_config();
 }   

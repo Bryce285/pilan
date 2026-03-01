@@ -39,6 +39,11 @@ Logger::Logger()
 	level_map[LogEvent::DISK_FULL] = "ERROR";
 }
 
+void Logger::init(const PathMgr& path_mgr)
+{
+	log_path_ = path_mgr.log_path;	
+}
+
 unsigned long long Logger::get_avail_storage()
 {
 	unsigned long long available = stat.f_bavail * stat.f_frsize;

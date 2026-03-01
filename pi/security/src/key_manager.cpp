@@ -1,5 +1,10 @@
 #include "key_manager.hpp"
 
+void KeyManager::init(const PathMgr& path_mgr)
+{
+	MDK_PATH = path_mgr.mdk_path;
+}
+
 // lock memory of key_buf anytime this function is called
 void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
