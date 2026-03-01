@@ -8,8 +8,11 @@ namespace Utils
      */
     std::optional<std::string> parse_config()
     {
-        std::ifstream file("~/.pilan-config");
+		std::string home = std::getenv("HOME");
+		std::string path = home + "/.pilanconfig";
+        std::ifstream file(path);
         if (!file.is_open()) {
+			std::cout << "Config file not detected. Using defaults." << std::endl;
             return std::nullopt;
         }
 

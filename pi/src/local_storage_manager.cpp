@@ -62,7 +62,9 @@ void LocalStorageManager::local_encrypt(std::string src, std::string dest)
     int dest_fd = open(tmp_path_str.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
     if (src_fd < 0 || dest_fd < 0) {
-        throw std::runtime_error("Failed to open file");
+		std::cerr << src << std::endl;
+		std::cerr << tmp_path_str << std::endl;
+        throw std::runtime_error("Failed to open file [local_storage_manager:65]");
     }
 
     file_size = std::filesystem::file_size(src);

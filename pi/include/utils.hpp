@@ -4,6 +4,8 @@
 #include <optional>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
+#include <cstdlib>
 
 #pragma once
 
