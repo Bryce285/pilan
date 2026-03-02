@@ -134,6 +134,22 @@ bool Server::authenticate(int clientfd)
 	return true;
 }
 
+void Server::send_err(std::string msg, ClientState& state, int clientfd)
+{
+	SocketStreamWriter writer(clientfd);
+	msg = "ERROR\n " + msg;
+
+	storage_manager.crypto_transit.encrypted_string_send(
+		msg,
+		[&](const uint8_t* data, size_t len) {
+			writer.write(data, len);
+		},
+		SESSION_KEY->key_buf
+	);
+
+	state.command = DEFAULT;
+}
+
 bool Server::upload_file(ClientState& state, int clientfd)
 {
 	size_t to_write = std::min(state.in_bytes_remaining, state.rx_buffer.size());
@@ -148,6 +164,9 @@ bool Server::upload_file(ClientState& state, int clientfd)
 			logger.log_event(Logger::LogEvent::UPLOAD_FAILURE);
 			std::cerr << "Failed to write chunk: " << e.what() << std::endl;
 			storage_manager.abort_upload(*cur_upload_handle);
+			
+			std::string client_msg = "Server error: upload failed";
+			send_err(client_msg, state, clientfd); 
 		
 			return true;
 		}
@@ -190,7 +209,10 @@ void Server::download_file(ClientState& state, int clientfd)
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
-    storage_manager.crypto_transit.encrypted_string_send(
+    
+	std::cout << "Header: " << header << std::endl;
+
+	storage_manager.crypto_transit.encrypted_string_send(
 		header, 
 		[&](const uint8_t* data, size_t len) {
 			writer.write(data, len);
@@ -205,6 +227,9 @@ void Server::download_file(ClientState& state, int clientfd)
 		logger.log_event(Logger::LogEvent::DOWNLOAD_FAILURE);
 
 		std::cerr << "Failed to stream file: " << e.what() << std::endl;
+
+		std::string client_msg = "Server error: Failed to stream file";
+		send_err(client_msg, state, clientfd); 
 	}
 				
 	state.command = DEFAULT;
@@ -226,6 +251,9 @@ void Server::list_files(ClientState& state, int clientfd)
 	catch (const std::exception& e) {
 		logger.log_event(Logger::LogEvent::FILE_LIST_FAILURE);
 		std::cerr << "Failed to get file list: " << e.what() << std::endl;
+
+		std::string client_msg = "Server error: Failed to get file list";
+		send_err(client_msg, state, clientfd); 
 	}
 
 	if (message.empty()) message.append("\n");
@@ -253,6 +281,10 @@ void Server::delete_file(ClientState& state, int clientfd)
 		logger.log_event(Logger::LogEvent::FILE_DELETE_FAILURE);
 		std::cerr << "Failed to delete file: " << e.what() << std::endl;
 		state.command = DEFAULT;
+
+		std::string client_msg = "Server error: Failed to delete file";
+		send_err(client_msg, state, clientfd); 
+
 		return;
 	}
 
@@ -493,6 +525,8 @@ void Server::client_loop(int clientfd)
 				}
 				catch (const std::exception& e) {
 					std::cerr << "Failed to parse client message: " << e.what() << std::endl;
+					std::string client_msg = "Server error: Failed to parse client message";
+					send_err(client_msg, state, clientfd);	
 				}
 
 				if (state.command == QUIT) {

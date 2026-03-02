@@ -93,11 +93,12 @@ class Server
         bool recv_all(int sock, uint8_t* buf, size_t len);
         bool recv_encrypted_msg(int sock, const uint8_t session_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES], std::vector<uint8_t>& plaintext_out);
 
+		void send_err(std::string msg, ClientState& state, int clientfd);
 		bool upload_file(ClientState& state, int clientfd);
 		void download_file(ClientState& state, int clientfd);
 		void list_files(ClientState& state, int clientfd);
 		void delete_file(ClientState& state, int clientfd);
-		
+
 		void parse_msg(ClientState& state, size_t pos);
 
 		void client_loop(int clientfd);

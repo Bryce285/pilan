@@ -368,7 +368,7 @@ void Client::handle_server_msg(ServerState& state, int sock)
 					parse_msg(state, pos);
             	}
 				catch (const std::exception& e) {
-					std::cerr << "Failed to parse message from server" << std::endl;
+					std::cerr << "Failed to parse message from server: " << e.what() << std::endl;
 					state.connected = false;
 				}
 			}
