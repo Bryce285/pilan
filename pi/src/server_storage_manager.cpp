@@ -142,6 +142,11 @@ void ServerStorageManager::abort_upload(UploadHandle& handle)
 ServerStorageManager::FileInfo ServerStorageManager::get_file_info(const std::string& name)
 {
 	std::filesystem::path path = config.meta_dir / (sanitize_filename(name) + ".json");	
+
+	if (!std::filesystem::exists(path)) {
+		throw std::runtime_error("File does not exist: " + path.string());
+	}
+
 	FileInfo file_info;
 
 	std::ifstream inFile(path);

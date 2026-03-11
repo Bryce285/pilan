@@ -26,7 +26,7 @@ add_executable(server
 target_compile_options(server PRIVATE
     -Wvla
     -fstack-protector-strong
-	-Wall
+	  -Wall
     -Wextra
     -Wpedantic
     -Wshadow

@@ -1,0 +1,56 @@
+[
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/main.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/main.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/main.cpp",
+  "output": "CMakeFiles/server.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/paths.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/paths.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/paths.cpp",
+  "output": "CMakeFiles/server.dir/src/paths.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/server.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/server.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/server.cpp",
+  "output": "CMakeFiles/server.dir/src/server.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/server_storage_manager.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/server_storage_manager.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/server_storage_manager.cpp",
+  "output": "CMakeFiles/server.dir/src/server_storage_manager.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/local_storage_manager.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/local_storage_manager.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/local_storage_manager.cpp",
+  "output": "CMakeFiles/server.dir/src/local_storage_manager.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/logger.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/logger.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/logger.cpp",
+  "output": "CMakeFiles/server.dir/src/logger.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/src/utils.cpp.o -c /home/bryce/projects/offlinePiFS/pi/src/utils.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/src/utils.cpp",
+  "output": "CMakeFiles/server.dir/src/utils.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/security/src/crypto.cpp.o -c /home/bryce/projects/offlinePiFS/pi/security/src/crypto.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/security/src/crypto.cpp",
+  "output": "CMakeFiles/server.dir/security/src/crypto.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/pi/build-x86_64",
+  "command": "/opt/musl/x86_64-linux-musl-cross/bin/x86_64-linux-musl-g++ --sysroot=/opt/musl/x86_64-sysroot  -I/home/bryce/projects/offlinePiFS/pi/include -I/home/bryce/projects/offlinePiFS/pi/../shared/include -I/home/bryce/projects/offlinePiFS/pi/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/server.dir/security/src/key_manager.cpp.o -c /home/bryce/projects/offlinePiFS/pi/security/src/key_manager.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/pi/security/src/key_manager.cpp",
+  "output": "CMakeFiles/server.dir/security/src/key_manager.cpp.o"
+}
+]

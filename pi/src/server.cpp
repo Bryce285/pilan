@@ -202,10 +202,25 @@ bool Server::upload_file(ClientState& state, int clientfd)
 
 void Server::download_file(ClientState& state, int clientfd)
 {
-    SocketStreamWriter writer(clientfd);
+  SocketStreamWriter writer(clientfd);
 
-	ServerStorageManager::FileInfo file_info = storage_manager.get_file_info(state.ofilename);
-	uint64_t size = file_info.size_bytes;
+	ServerStorageManager::FileInfo file_info;
+	uint64_t size;
+
+	try {
+		file_info = storage_manager.get_file_info(state.ofilename);
+		size = file_info.size_bytes;
+	}
+	catch (const std::exception& e) {
+		logger.log_event(Logger::LogEvent::DOWNLOAD_FAILURE);
+		std::cerr << "Failed to stream file: " << e.what() << std::endl;
+
+		std::string client_msg = "Server error: Failed to stream file";
+		send_err(client_msg, state, clientfd);
+
+		state.command = DEFAULT;
+		return;
+	}
 
 	// send header
 	std::string header = "DOWNLOAD " + state.ofilename + " " + std::to_string(size) + "\n";
@@ -233,7 +248,6 @@ void Server::download_file(ClientState& state, int clientfd)
 	}
 				
 	state.command = DEFAULT;
-
 	logger.log_event(Logger::LogEvent::DOWNLOAD_COMPLETE);
 }
 
