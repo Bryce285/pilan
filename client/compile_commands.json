@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/bryce/projects/offlinePiFS/client/build-x86_64",
+  "command": "/usr/bin/c++ -DLOCALTEST=1 -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include -I/home/bryce/projects/offlinePiFS/client/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/client.dir/src/main.cpp.o -c /home/bryce/projects/offlinePiFS/client/src/main.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/client/src/main.cpp",
+  "output": "CMakeFiles/client.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/client/build-x86_64",
+  "command": "/usr/bin/c++ -DLOCALTEST=1 -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include -I/home/bryce/projects/offlinePiFS/client/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/client.dir/src/paths.cpp.o -c /home/bryce/projects/offlinePiFS/client/src/paths.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/client/src/paths.cpp",
+  "output": "CMakeFiles/client.dir/src/paths.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/client/build-x86_64",
+  "command": "/usr/bin/c++ -DLOCALTEST=1 -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include -I/home/bryce/projects/offlinePiFS/client/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/client.dir/src/client.cpp.o -c /home/bryce/projects/offlinePiFS/client/src/client.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/client/src/client.cpp",
+  "output": "CMakeFiles/client.dir/src/client.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/client/build-x86_64",
+  "command": "/usr/bin/c++ -DLOCALTEST=1 -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include -I/home/bryce/projects/offlinePiFS/client/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/client.dir/src/client_storage_manager.cpp.o -c /home/bryce/projects/offlinePiFS/client/src/client_storage_manager.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/client/src/client_storage_manager.cpp",
+  "output": "CMakeFiles/client.dir/src/client_storage_manager.cpp.o"
+},
+{
+  "directory": "/home/bryce/projects/offlinePiFS/client/build-x86_64",
+  "command": "/usr/bin/c++ -DLOCALTEST=1 -I/home/bryce/projects/offlinePiFS/client/include -I/home/bryce/projects/offlinePiFS/client/../shared/include -I/home/bryce/projects/offlinePiFS/client/security/include -std=gnu++20 -Wvla -fstack-protector-strong -Wall -Wextra -Wpedantic -Wshadow -Wconversion -o CMakeFiles/client.dir/security/src/crypto.cpp.o -c /home/bryce/projects/offlinePiFS/client/security/src/crypto.cpp",
+  "file": "/home/bryce/projects/offlinePiFS/client/security/src/crypto.cpp",
+  "output": "CMakeFiles/client.dir/security/src/crypto.cpp.o"
+}
+]

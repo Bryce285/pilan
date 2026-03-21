@@ -1,4 +1,5 @@
 #include "key_manager.hpp"
+#include "utils.hpp"
 
 void KeyManager::init(const PathMgr& path_mgr)
 {
@@ -34,8 +35,12 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
         
         std::string passphrase;
         std::cout << "Enter passphrase to unlock master key: ";
-        std::getline(std::cin, passphrase);
 
+        {
+          Utils::TerminalEchoGuard guard;
+          std::getline(std::cin, passphrase);
+        }
+        
         uint8_t kdf_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
         if (crypto_pwhash(kdf_key, sizeof(kdf_key),
                             passphrase.c_str(), passphrase.size(),
@@ -65,9 +70,19 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
 
         std::string passphrase, passphrase_confirm;
         std::cout << "Enter passphrase to protect master key (save this somewhere safe, if you lose this passphrase you will not be able to decrypt any of your files): ";
-        std::getline(std::cin, passphrase);
+
+        {
+          Utils::TerminalEchoGuard guard;
+          std::getline(std::cin, passphrase);
+        }
+
         std::cout << "Confirm passphrase: ";
-        std::getline(std::cin, passphrase_confirm);
+
+        {
+          Utils::TerminalEchoGuard guard;
+          std::getline(std::cin, passphrase_confirm);
+        }
+
         if (passphrase != passphrase_confirm) {
             throw std::runtime_error("Passphrase mismatch");
         }

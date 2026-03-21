@@ -1,4 +1,5 @@
 #include "crypto.hpp"
+#include "utils.hpp"
 
 void CryptoInTransit::write_tak(const std::string& tak)
 {
@@ -159,9 +160,19 @@ void CryptoInTransit::encrypt_tak(uint8_t key_buf[crypto_aead_xchacha20poly1305_
 
 	std::string passphrase, passphrase_confirm;
 	std::cout << "Enter a passphrase to protect your transfer authentication key. This can be the same or different as your master key passphrase: ";
-	std::getline(std::cin, passphrase);
+
+	{
+		Utils::TerminalEchoGuard guard;
+		std::getline(std::cin, passphrase);
+	}
+
 	std::cout << "Confirm passphrase: ";
-	std::getline(std::cin, passphrase_confirm);
+
+	{
+		Utils::TerminalEchoGuard guard;
+		std::getline(std::cin, passphrase_confirm);
+	}
+
 	if (passphrase != passphrase_confirm) {
 		throw std::runtime_error("Passphrase mismatch");
 	}
@@ -231,8 +242,12 @@ void CryptoInTransit::decrypt_tak(uint8_t out_buf[crypto_aead_xchacha20poly1305_
 
 	std::string passphrase;
 	std::cout << "Enter passphrase to unlock transfer authentication key: ";
-	std::getline(std::cin, passphrase);
 
+	{
+		Utils::TerminalEchoGuard guard;
+		std::getline(std::cin, passphrase);
+	}
+	
 	uint8_t kdf_key[crypto_aead_xchacha20poly1305_ietf_KEYBYTES];
 	if (crypto_pwhash(kdf_key, sizeof(kdf_key),
 						passphrase.c_str(), passphrase.size(),

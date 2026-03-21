@@ -14,6 +14,7 @@
 #include "client.hpp"
 #include "crypto.hpp"
 #include "paths.hpp"
+#include "utils.hpp"
 
 int main(int argc, char* argv[]) 
 {
@@ -38,7 +39,11 @@ int main(int argc, char* argv[])
 	if (key_flag_set) {
 		std::string tak;
 		std::cout << "Enter your Transfer Authentication Key: ";
-		std::getline(std::cin, tak);
+
+		{
+			Utils::TerminalEchoGuard guard;
+			std::getline(std::cin, tak);
+		}
 		
 		try {
 			CryptoInTransit::write_tak(tak);
@@ -177,7 +182,8 @@ int main(int argc, char* argv[])
 			client.handle_cmd(state, cmd, sock);
 		}
 		catch (const std::exception& e) {
-			std::cerr << "Command handling error: " << e.what() << std::endl;
+			std::cerr << "Command handling error: " << e.what() << "\n" << std::endl;
+			continue;
 		}
 
 		state.cur_srvr_msg_handled = false;

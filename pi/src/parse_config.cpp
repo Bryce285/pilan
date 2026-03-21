@@ -1,5 +1,6 @@
 #include "utils.hpp"
 
+// TODO - clean this up, maybe move parsing out of utils namespace
 namespace Utils
 {
 	/* This is a simple parsing function to parse a config file with the single

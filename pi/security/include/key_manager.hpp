@@ -6,6 +6,9 @@
 #include "paths.hpp"
 #include <vector>
 
+// TODO - clean up usage of headers. only include headers where they
+// are actually necessary for compilation
+
 #pragma once
 
 class KeyManager
