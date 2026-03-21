@@ -23,4 +23,5 @@
 .DS_Store
 Thumbs.db
 
+# Ignore clangd cache
 .cache
