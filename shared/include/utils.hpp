@@ -53,6 +53,4 @@ namespace Utils
     ltrim(s);
     rtrim(s);
   }
-
-  std::optional<std::string> parse_config();
 }

@@ -4,7 +4,7 @@ void PathMgr::init_paths()
 {
     auto root_dir = Utils::parse_config();
 
-	strg_cfg_root = root_dir.value_or("/data/");
+		strg_cfg_root = root_dir.value_or("/data/");
 
     log_path = strg_cfg_root / "logs/pilan.log";
     strg_cfg_files = strg_cfg_root / "files/";

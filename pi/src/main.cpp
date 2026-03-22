@@ -112,7 +112,8 @@ int main(int argc, char* argv[])
 
     PathMgr path_mgr;
     if (!path_mgr.mkdirs()) {
-		exit(1);
+        std::cerr << "Failed to create directories" << std::endl;
+		    exit(1);
 	}
 
 	KeyManager::init(path_mgr);
