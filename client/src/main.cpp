@@ -54,6 +54,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	// TODO - launch discovery client here to get server port 
+
 #if LOCALTEST
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 

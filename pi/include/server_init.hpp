@@ -22,9 +22,10 @@ namespace ServerInit
 		std::chrono::steady_clock::time_point time;	
 	};
 
-    bool server_init()
+		// TODO - move implementation of this function out of the header
+  	bool server_init()
     {
-        Logger logger;
+      Logger logger;
 	    Server server{logger};
 	    logger.log_event(Logger::LogEvent::SERVICE_START);
     
@@ -45,7 +46,7 @@ namespace ServerInit
 
 	    sockaddr_in addr{};
 	    addr.sin_family = AF_INET;
-	    addr.sin_port = htons(8080);
+	    addr.sin_port = htons(0);
 	    addr.sin_addr.s_addr = INADDR_ANY;
 
 	    int opt = 1;
@@ -56,6 +57,15 @@ namespace ServerInit
 		    perror("Failed to bind socket.");
 		    return false;
 	    }
+
+	    socklen_t len = sizeof(addr);
+	    getsockname(sockfd, (struct sockaddr*)&addr, &len);
+	    uint16_t actual_port = ntohs(addr.sin_port);
+			// TODO - now that we have the actual port we can start the
+			// discovery server on a separate thread
+			//
+			// We should also display the ip/port info in case automatic discovery
+			// fails and the user needs to enter the information manually
 
 	    if (listen(sockfd, 8) < 0) {
 		    perror("Listening failed.");
