@@ -59,6 +59,7 @@ int main(int argc, char* argv[])
 	// launch discovery client to get server port
 	DiscoveryClient::ServerInfo serv_info{};
 
+	// TODO - on failure, allow client to enter info manually
 	try {
 		DiscoveryClient::discover(serv_info);
 	}

@@ -1,6 +1,5 @@
 ## Server todo
-* integrate udp discovery server with existing tcp server init process (remember to move server init function implementations out of the header, and print the server port/ip to the terminal)
-* also, consider not binding to port 0 since a lot of firewalls and administrations will have that blocked
+* consider not binding to port 0 since a lot of firewalls and administrations will have that blocked
 * make display of tak an option
 * add a key reset option that deletes the mdk file
 * add support for other options to the config file

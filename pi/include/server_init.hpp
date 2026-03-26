@@ -1,14 +1,21 @@
+#include <stdexcept>
+#include <string>
 #include <sys/socket.h>   // socket(), bind(), listen(), accept(), send(), recv()
 #include <netinet/in.h>   // sockaddr_in, INADDR_ANY, htons()
 #include <arpa/inet.h>    // inet_addr() if needed
 #include <unistd.h>       // close()
 #include <fcntl.h>
-
+#include <ifaddrs.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <thread>
+#include <variant>
 
 #include "server.hpp"
 #include "key_manager.hpp"
 #include "logger.hpp"
+#include "discovery_server.hpp"
 
 #pragma once
 
@@ -61,12 +68,39 @@ namespace ServerInit
 	    socklen_t len = sizeof(addr);
 	    getsockname(sockfd, (struct sockaddr*)&addr, &len);
 	    uint16_t actual_port = ntohs(addr.sin_port);
-			// TODO - now that we have the actual port we can start the
-			// discovery server on a separate thread
-			//
-			// We should also display the ip/port info in case automatic discovery
-			// fails and the user needs to enter the information manually
+			
+			std::thread discovery_thread(DiscoveryServer::init, actual_port);
+			discovery_thread.detach();
 
+
+
+			// get network info and display it in case client needs to enter info manually
+			struct ifaddrs *ifaddr, *ifa;
+			if (getifaddrs(&ifaddr) == -1) {
+				perror("getifaddrs");
+				throw std::runtime_error("Failed to retrieve network information.");
+			}
+			
+			std::cout << "Server Info: " << std::endl;
+			std::cout << "Port: " << std::to_string(actual_port) << std::endl;
+			std::cout << "Network Interfaces: " << std::endl;
+
+			for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+				if (ifa->ifa_addr == NULL) continue;
+
+				printf("%s\n", ifa->ifa_name);
+				if (ifa->ifa_addr->sa_family == AF_INET) {
+					char host[INET_ADDRSTRLEN];
+					struct sockaddr_in *pAddr = (struct sockaddr_in *)ifa->ifa_addr;
+					inet_ntop(AF_INET, &pAddr->sin_addr, host, INET_ADDRSTRLEN);
+					printf("\tAddress: %s\n", host);
+				}
+			}
+
+			freeifaddrs(ifaddr); 
+
+
+			
 	    if (listen(sockfd, 8) < 0) {
 		    perror("Listening failed.");
 		    return false;
