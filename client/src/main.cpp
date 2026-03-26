@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include <string>
 #include <cstring>
 #include <sys/socket.h>
@@ -15,6 +16,7 @@
 #include "crypto.hpp"
 #include "paths.hpp"
 #include "utils.hpp"
+#include "discovery_client.hpp"
 
 int main(int argc, char* argv[]) 
 {
@@ -54,67 +56,33 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// TODO - launch discovery client here to get server port 
+	// launch discovery client to get server port
+	DiscoveryClient::ServerInfo serv_info{};
 
-#if LOCALTEST
+	try {
+		DiscoveryClient::discover(serv_info);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Failed to discover server: " << e.what() << std::endl;
+		exit(1);
+	}
+
+	if (!serv_info.discovery_success) {
+		std::cerr << "Failed to discover server." << std::endl;
+		exit(1);
+	}
+	
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 
 	sockaddr_in server{};
-    server.sin_family = AF_INET;
-    server.sin_port = htons(8080);
-    inet_pton(AF_INET, "127.0.0.1", &server.sin_addr);
-
+  server.sin_family = AF_INET;
+  server.sin_port = htons(serv_info.port);
+	server.sin_addr = serv_info.server_addr.sin_addr;
+		
 	if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
         std::cerr << "Connection failed\n";
         exit(1);
-    }
-#else
-	/*
-	struct addrinfo hints{}, *res;
-	
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	int status = getaddrinfo("pilan.local", "8080", &hints, &res);
-	if (status != 0) {
-		std::cerr << "getaddrinfo: " << gai_strerror(status) << std::endl;
-		exit(1);
-	}
-
-	int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sock < 0) {
-		perror("socket");
-		freeaddrinfo(res);
-		exit(1);
-	}
-
-	if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
-		perror("connect");
-		freeaddrinfo(res);
-		close(sock);
-		exit(1);
-	}
-
-	freeaddrinfo(res);
-	*/
-	
-	// For static IP
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-
-	sockaddr_in server{};
-    server.sin_family = AF_INET;
-    server.sin_port = htons(8080);
-    if (inet_pton(AF_INET, "192.168.100.1", &server.sin_addr) <= 0) {
-		std::cerr << "Invalid IP address\n";
-		exit(1);
-	}
-
-	if (connect(sock, (sockaddr*)&server, sizeof(server)) < 0) {
-        perror("Connect failed");
-		exit(1);
-    }
-#endif
+  }
 
 	int flags = fcntl(sock, F_GETFL, 0);
 	fcntl(sock, F_SETFL, flags | O_NONBLOCK);

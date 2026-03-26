@@ -1,7 +1,7 @@
 ## Server todo
-* improve connection protocol using either mDNS (would require dependencies) or UDP discovery broadcast (if using UDP broadcast a timeout/fallback system should be in place where if the broadcast is not picked up in a certain amount of time the client is prompted to enter the ip manually). also maybe print out server ip on startup in case the client needs to enter it manually
+* integrate udp discovery server with existing tcp server init process (remember to move server init function implementations out of the header, and print the server port/ip to the terminal)
+* also, consider not binding to port 0 since a lot of firewalls and administrations will have that blocked
 * make display of tak an option
-* integrate automatic daemonization as an option (note then when adding daemonization, a utility should also probably be added to display the key)
 * add a key reset option that deletes the mdk file
 * add support for other options to the config file
 

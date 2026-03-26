@@ -7,8 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
-add_compile_definitions(LOCALTEST=1)
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SODIUM REQUIRED libsodium)
 

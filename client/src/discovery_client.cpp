@@ -1,6 +1,7 @@
 #include "discovery_client.hpp"
 
 #include <asm-generic/socket.h>
+#include <limits>
 #include <string>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,7 +10,7 @@
 
 namespace DiscoveryClient
 {
-  int discover()
+  void discover(ServerInfo& serv_info_out)
   {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -37,12 +38,13 @@ namespace DiscoveryClient
 
       int value = std::stoi(data);
 
-      if (value < 0) {
-        throw std::runtime_error("Invalid port received from server.");
+      if (value < std::numeric_limits<uint16_t>::min() || value > std::numeric_limits<uint16_t>::max()) {
+        throw std::runtime_error("Invalid port received from server: " + std::to_string(value));
       }
-      return value;
-    }
 
-    return -1;
+      serv_info_out.server_addr = addr;
+      serv_info_out.port = value;
+      serv_info_out.discovery_success = true;
+    }
   }
 }
