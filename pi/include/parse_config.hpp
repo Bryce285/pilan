@@ -6,5 +6,5 @@
 class ConfigParser
 {
   public:
-    std::optional<std::string> parse_config();
+    static std::optional<std::string> parse_config();
 };

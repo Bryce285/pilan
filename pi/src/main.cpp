@@ -1,13 +1,10 @@
 #include <vector>
-#include <chrono>
 #include <string>
 #include <iostream>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <sstream>
 #include <filesystem>
-#include <fstream>
 #include <csignal>
 #include <cstring>
 #include <iomanip>
@@ -17,6 +14,8 @@
 #include "paths.hpp"
 #include "server_init.hpp"
 #include "local_storage_manager.hpp"
+#include "logger.hpp"
+#include "server_storage_manager.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -27,30 +26,30 @@ int main(int argc, char* argv[])
     std::filesystem::path dest;
     bool create_meta = false;
 
-	struct Option {
+    struct Option {
     	std::string flag;
     	std::string description;
-	};
+    };
 
-	std::vector<Option> options = {
-    	{"-s, --server", "start in server mode"},
-    	{"-e <src> <dst>, --encrypt <src> <dst>", "local mode encryption"},
-    	{"-d <src> <dst>, --decrypt <src> <dst>", "local mode decryption"},
+    std::vector<Option> options = {
+        {"-s, --server", "start in server mode"},
+        {"-e <src> <dst>, --encrypt <src> <dst>", "local mode encryption"},
+        {"-d <src> <dst>, --decrypt <src> <dst>", "local mode decryption"},
         {"-m, --meta", "create metadata for local file encryptions"},
-    	{"-h, --help", "show help"}
-	};
+        {"-h, --help", "show help"}
+	  };
 
-	std::ostringstream oss;
-	oss << "Usage:\n\n";
+    std::ostringstream oss;
+    oss << "Usage:\n\n";
     oss << "Welcome to pilan.\nRead the docs: <link_here>\nFor more configuration options, edit ~/.pilanconfig\n\n"; 
 
-	for (const auto& opt : options) {
-    	oss << "  " << std::left << std::setw(30)
-        	<< opt.flag
-        	<< opt.description << "\n";
-	}
+    for (const auto& opt : options) {
+        oss << "  " << std::left << std::setw(30)
+        << opt.flag
+        << opt.description << "\n";
+    }
 
-	std::string usage = oss.str();
+    std::string usage = oss.str();
 
     for (int i = 1; i < argc; i++) {
         std::string_view arg = argv[i];
@@ -119,18 +118,18 @@ int main(int argc, char* argv[])
 	KeyManager::init(path_mgr);
 
     if (server_mode) {
-		Logger::init(path_mgr);
-		ServerStorageManager::init(path_mgr);
-	    if (!ServerInit::server_init()){
+		    Logger::init(path_mgr);
+	      ServerStorageManager::init(path_mgr);
+	      if (!ServerInit::server_init()){
             exit(1);
         }
     }
     else if (local_encrypt) {
-		LocalStorageManager::init(path_mgr);
+		    LocalStorageManager::init(path_mgr);
         LocalStorageManager mgr{LocalStorageManager::Mode::ENCRYPT, src, dest, create_meta};
     }
     else if (local_decrypt) {
-		LocalStorageManager::init(path_mgr);
+		    LocalStorageManager::init(path_mgr);
         LocalStorageManager mgr{LocalStorageManager::Mode::DECRYPT, src, dest, create_meta};
     }
     else {

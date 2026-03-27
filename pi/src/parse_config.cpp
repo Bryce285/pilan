@@ -1,5 +1,7 @@
 #include "parse_config.hpp"
+
 #include "utils.hpp"
+#include <fstream>
 
 /* This is a simple parsing function to parse a config file with the single
 * line: pilan_root=/path/to/directory 

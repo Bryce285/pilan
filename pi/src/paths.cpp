@@ -1,8 +1,11 @@
 #include "paths.hpp"
 
+#include <iostream>
+#include "parse_config.hpp"
+
 void PathMgr::init_paths()
 {
-    auto root_dir = Utils::parse_config();
+    auto root_dir = ConfigParser::parse_config();
 
 		strg_cfg_root = root_dir.value_or("/data/");
 
