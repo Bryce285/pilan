@@ -15,6 +15,7 @@ add_executable(client
 	src/paths.cpp
 	src/client.cpp
 	src/client_storage_manager.cpp
+	src/discovery_client.cpp
 	security/src/crypto.cpp	
 )
 
