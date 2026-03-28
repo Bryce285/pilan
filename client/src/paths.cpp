@@ -1,7 +1,6 @@
 #include "paths.hpp"
 
 #include <pwd.h>
-#include <stdexcept>
 #include <unistd.h>
 #include <filesystem>
 #include <iostream>
@@ -26,6 +25,7 @@ bool PathMgr::mkdirs()
 	
 	try {
 		std::filesystem::create_directory(downloads_dir);
+		std::filesystem::create_directory(pilandata_dir);
 		std::filesystem::create_directory(tmp_dir);
 		std::filesystem::create_directory(tak_dir);
 	}
