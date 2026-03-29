@@ -1,6 +1,5 @@
 ## Server todo
 * consider not binding to port 0 since a lot of firewalls and administrations will have that blocked
-* make display of tak an option
 * add a key reset option that deletes the mdk file
 * add support for other options to the config file
 
@@ -15,5 +14,5 @@ pilan_root=/home/user/Pilan
 \# specifies whether metadata is generated for local encryptions  
 local_metadata=bool
 
-\# specifies whether full metadata is generated for local/remote encryptions, or just the required metadata  
-full_metadata=bool
+\# specifies the port that should be used by the server
+port=8080
