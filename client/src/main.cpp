@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 	
 	if (key_flag_set) {
 		std::string tak;
-		std::cout << "Enter your Transfer Authentication Key: ";
+		std::cout << "Enter your Transfer Authentication Key: \n";
 
 		{
 			Utils::TerminalEchoGuard guard;

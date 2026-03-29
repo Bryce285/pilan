@@ -35,12 +35,12 @@ void CryptoInTransit::write_tak(const std::string& tak)
 // mlock key_buf anytime this function is used
 void CryptoInTransit::load_tak(uint8_t key_buf[crypto_kdf_KEYBYTES])
 {
-    if (std::filesystem::exists(TAK_PATH)) {
-    	decrypt_tak(key_buf);
+	if (std::filesystem::exists(TAK_PATH)) {
+  	decrypt_tak(key_buf);
 	}
 	else {
-        throw std::runtime_error("TAK error: Transfer authentication key not found");
-    }
+  	throw std::runtime_error("TAK error: Transfer authentication key not found");
+  }
 }
 
 void CryptoInTransit::get_auth_tag(uint8_t* out_buf, uint8_t* server_nonce, uint8_t tak[crypto_kdf_KEYBYTES])
@@ -159,14 +159,14 @@ void CryptoInTransit::encrypt_tak(uint8_t key_buf[crypto_aead_xchacha20poly1305_
 	randombytes_buf(nonce, sizeof(nonce));
 
 	std::string passphrase, passphrase_confirm;
-	std::cout << "Enter a passphrase to protect your transfer authentication key. This can be the same or different as your master key passphrase: ";
+	std::cout << "Enter a passphrase to protect your transfer authentication key. This can be the same or different as your master key passphrase: \n";
 
 	{
 		Utils::TerminalEchoGuard guard;
 		std::getline(std::cin, passphrase);
 	}
 
-	std::cout << "Confirm passphrase: ";
+	std::cout << "Confirm passphrase: \n";
 
 	{
 		Utils::TerminalEchoGuard guard;
@@ -241,7 +241,7 @@ void CryptoInTransit::decrypt_tak(uint8_t out_buf[crypto_aead_xchacha20poly1305_
 	}
 
 	std::string passphrase;
-	std::cout << "Enter passphrase to unlock transfer authentication key: ";
+	std::cout << "Enter passphrase to unlock transfer authentication key: \n";
 
 	{
 		Utils::TerminalEchoGuard guard;

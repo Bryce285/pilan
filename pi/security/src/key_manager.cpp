@@ -34,7 +34,7 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
         }
         
         std::string passphrase;
-        std::cout << "Enter passphrase to unlock master key: ";
+        std::cout << "Enter passphrase to unlock master key: \n";
 
         {
           Utils::TerminalEchoGuard guard;
@@ -69,14 +69,14 @@ void KeyManager::load_or_gen_mdk(uint8_t key_buf[crypto_kdf_KEYBYTES])
         randombytes_buf(nonce, sizeof(nonce));
 
         std::string passphrase, passphrase_confirm;
-        std::cout << "Enter passphrase to protect master key (save this somewhere safe, if you lose this passphrase you will not be able to decrypt any of your files): ";
+        std::cout << "Enter passphrase to protect master key (save this somewhere safe, if you lose this passphrase you will not be able to decrypt any of your files): \n";
 
         {
           Utils::TerminalEchoGuard guard;
           std::getline(std::cin, passphrase);
         }
 
-        std::cout << "Confirm passphrase: ";
+        std::cout << "Confirm passphrase: \n";
 
         {
           Utils::TerminalEchoGuard guard;
