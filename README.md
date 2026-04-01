@@ -1,2 +1,2 @@
 # pilan
-Pilan is a program for wireless encrypted file storage over LAN.
+Pilan is a program for wireless encrypted file storage over LAN, and local file encryption/decryption.
